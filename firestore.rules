@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function staff() { return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+      && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true; }
+    function role() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role; }
+    function admin() { return staff() && role() in ['superadmin','admin']; }
+    function superadmin() { return staff() && role() == 'superadmin'; }
+
+    match /users/{u} {
+      allow read: if request.auth != null && (request.auth.uid == u || superadmin());
+      allow create, update: if superadmin();
+    }
+    match /participants/{id} { allow read, write: if admin(); }
+    match /seminar/{id} { allow get: if true; allow list: if staff(); allow write: if admin(); }
+    // get dibuka agar peserta bisa membuka tautan tiketnya; kode tiket acak dan tidak bisa ditebak
+    match /tickets/{id} {
+      allow get: if true;
+      allow list: if admin();
+      allow create: if admin();
+      allow update: if admin() || (staff() && resource.data.status == 'aktif' && request.resource.data.status == 'terpakai'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','usedAt','usedBy']));
+    }
+    match /checkins/{id} { allow read: if staff(); allow create: if staff() && request.resource.data.officerEmail == request.auth.token.email; }
+    match /auditLogs/{id} { allow read: if superadmin(); allow create: if staff(); }
+  }
+}
