@@ -7,7 +7,7 @@ export default function Distribution() {
   const ps = useCol('participants'), ts = useCol('tickets'), by = Object.fromEntries(ts.filter(t => t.status === 'aktif').map(t => [t.participantId, t]))
   const [state, setState] = useState({}), [busy, setBusy] = useState(false), [info, setInfo] = useState('')
   const one = async (p, t) => { setState(s => ({ ...s, [p.id]: 'Mengirim…' }))
-    try { const via = await sendTicketWA(t.id); setState(s => ({ ...s, [p.id]: via === 'fonnte-gambar' ? 'Terkirim (gambar QR)' : 'Terkirim (tautan)' })); return true } catch (e) { setState(s => ({ ...s, [p.id]: e.message })); return false } }
+    try { const j = await sendTicketWA(t.id); setState(s => ({ ...s, [p.id]: j.via === 'fonnte-gambar' ? 'Terkirim (gambar QR)' : `Terkirim (tautan saja${j.note ? '; gambar ditolak: ' + j.note : ''})` })); return true } catch (e) { setState(s => ({ ...s, [p.id]: e.message })); return false } }
   const todo = ps.filter(p => p.whatsapp && by[p.id] && !by[p.id].sentAt)
   const bulk = async () => { if (!await ask({ title:'Kirim tiket via WhatsApp?', text:`${todo.length} peserta akan menerima tautan tiket. Pesan dikirim satu per satu dengan jeda beberapa detik.`, ok:'Kirim sekarang', icon:'whatsapp' })) return
     setBusy(true); let ok = 0

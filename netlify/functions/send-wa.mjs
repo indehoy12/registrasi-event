@@ -38,24 +38,38 @@ export default async (req) => {
   const sm = await fsr('seminar/main', idToken), sf = sm.ok ? (await sm.json()).fields || {} : {}
   const title = sf.title?.stringValue || 'Seminar', time = sf.time?.stringValue, place = sf.location?.stringValue
   const date = sf.date?.stringValue ? new Date(sf.date.stringValue + 'T00:00:00Z').toLocaleDateString('id-ID', { dateStyle: 'full', timeZone: 'UTC' }) : ''
-  const message = [
-    `Halo ${pf.name?.stringValue || ''},`,
-    `Pendaftaran Anda untuk *${title}* sudah terkonfirmasi.`,
+  const link = `${base}/tiket/${ticketId}`
+  const detail = [date && `Hari/Tanggal : ${date}`, time && `Waktu : pukul ${time.replace(':', '.')}`, place && `Tempat : ${place}`].filter(Boolean)
+  const susun = (adaGambar) => [
+    `Yth. Bapak/Ibu ${pf.name?.stringValue || ''},`,
     '',
-    date && `Tanggal : ${date}`, time && `Waktu   : ${time}`, place && `Tempat  : ${place}`,
+    'Dengan hormat, kami mengundang Bapak/Ibu untuk hadir pada kegiatan:',
     '',
-    'Tunjukkan QR pada gambar ini kepada petugas saat registrasi. Satu QR hanya berlaku untuk satu orang.',
-    `Tiket online (cadangan): ${base}/tiket/${ticketId}`,
-  ].filter(x => x !== false && x !== undefined).join('\n')
+    `*${title}*`,
+    ...detail,
+    '',
+    adaGambar
+      ? 'Sebagai tanda masuk, kami sampaikan tiket elektronik berupa kode QR yang terlampir pada pesan ini. Mohon menunjukkan kode QR tersebut kepada petugas pada saat kedatangan.'
+      : 'Sebagai tanda masuk, kami sampaikan tiket elektronik berupa kode QR yang dapat dibuka melalui tautan berikut. Mohon menunjukkannya kepada petugas pada saat kedatangan:',
+    ...(adaGambar ? ['', 'Apabila kode QR tidak tampil, tiket dapat dibuka melalui tautan berikut:'] : []),
+    link,
+    '',
+    'Kode QR ini hanya berlaku untuk satu orang. Mohon tidak membagikannya kepada pihak lain.',
+    '',
+    'Atas perhatian dan kehadiran Bapak/Ibu, kami ucapkan terima kasih.',
+    '',
+    'Hormat kami,',
+    `Panitia ${title}`,
+  ].join('\n')
 
   // 4. Kirim lewat Fonnte: coba gambar QR dulu (paket Super ke atas), jika ditolak kirim tautan saja
-  const kirim = async (extra) => { const r = await fetch('https://api.fonnte.com/send', { method: 'POST', headers: { Authorization: FT, 'Content-Type': 'application/json' },
+  const kirim = async (message, extra) => { const r = await fetch('https://api.fonnte.com/send', { method: 'POST', headers: { Authorization: FT, 'Content-Type': 'application/json' },
     body: JSON.stringify({ target, message, countryCode: '62', ...extra }) }); const d = await r.json().catch(() => ({})); return { ok: r.ok && d.status !== false, reason: d.reason } }
-  let via = 'fonnte-gambar', res = await kirim({ url: `${base}/qr/${ticketId}.png` })
-  if (!res.ok) { via = 'fonnte'; res = await kirim({}) }
+  let via = 'fonnte-gambar', note = '', res = await kirim(susun(true), { url: `${base}/qr/${ticketId}.png` })
+  if (!res.ok) { note = res.reason || 'gambar ditolak'; via = 'fonnte'; res = await kirim(susun(false), {}) }
   if (!res.ok) return json({ error: `Fonnte: ${res.reason || 'gagal mengirim'}` }, 502)
 
   await fsr(`tickets/${ticketId}?updateMask.fieldPaths=sentAt&updateMask.fieldPaths=sentVia`, idToken,
     { method: 'PATCH', body: JSON.stringify({ fields: { sentAt: { timestampValue: new Date().toISOString() }, sentVia: { stringValue: via } } }) })
-  return json({ ok: true, via })
+  return json({ ok: true, via, note })
 }
