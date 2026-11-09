@@ -1,13 +1,12 @@
-import { useDialog } from '../ui'
-import { Badge } from '../ui'
+import { useDialog, Badge, SkelRows, MapsWarn } from '../ui'
 import { useState } from 'react'; import QRCode from 'qrcode'; import JSZip from 'jszip'
 import { addDoc, collection, doc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore'
-import { useCol, wait, sendTicketWA, maskWa, maskEmail } from '../hooks'; import { auth, db } from '../firebase'
+import { useColState, useSeminar, wait, sendTicketWA, maskWa, maskEmail, showCode } from '../hooks'; import { auth, db } from '../firebase'
 const newToken = () => { const b = crypto.getRandomValues(new Uint8Array(24)); return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') }
 const save = (href, name) => { const a = document.createElement('a'); a.href = href; a.download = name; a.click() }
 export default function Tickets() {
   const ask = useDialog()
-  const ps = useCol('participants'), ts = useCol('tickets'), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [auto, setAuto] = useState(true)
+  const [ps, lp] = useColState('participants'), [ts, lt] = useColState('tickets'), loading = lp || lt, { loaded: sl, mapsOk } = useSeminar(), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [auto, setAuto] = useState(true)
   const by = Object.fromEntries(ts.filter(t => t.status !== 'dicabut').map(t => [t.participantId, t]))
   const todo = ps.filter(p => !by[p.id])
   const gen = async (list) => { setBusy(true); setMsg('')
@@ -16,7 +15,7 @@ export default function Tickets() {
         made.slice(i, i + 400).forEach(({ p, id }) => b.set(doc(db, 'tickets', id), { participantId: p.id, participantName: p.name, institution: p.institution || '', emailMasked: maskEmail(p.email), waMasked: maskWa(p.whatsapp), status: 'aktif', createdAt: serverTimestamp(), sentAt: null })); await b.commit() }
       await addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'buat tiket', count: list.length })
       let info = `${list.length} tiket dibuat.`; setMsg(info)
-      if (auto) { const q = made.filter(x => x.p.whatsapp); let ok = 0
+      if (auto && mapsOk) { const q = made.filter(x => x.p.whatsapp); let ok = 0
         for (let i = 0; i < q.length; i++) { setMsg(`${info} Mengirim WhatsApp ${i + 1} dari ${q.length}…`)
           try { await sendTicketWA(q[i].id); ok++ } catch { /* yang gagal tetap berstatus Belum di menu Distribusi */ }
           if (i < q.length - 1) await wait(3000 + Math.random() * 3000) }
@@ -31,12 +30,14 @@ export default function Tickets() {
     await updateDoc(doc(db, 'tickets', t.id), { status: 'dicabut' })
     await addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'cabut tiket', participant: t.participantName }) }
   return <><div className="d-flex gap-2 mb-3 flex-wrap"><h1 className="h4 me-auto">Tiket QR</h1>
-    <label className="form-check d-flex align-items-center gap-2 small mb-0"><input type="checkbox" className="form-check-input mt-0" checked={auto} onChange={e => setAuto(e.target.checked)}/>Kirim otomatis via WhatsApp</label>
+    <label className="form-check d-flex align-items-center gap-2 small mb-0"><input type="checkbox" className="form-check-input mt-0" checked={auto && mapsOk} disabled={!mapsOk} onChange={e => setAuto(e.target.checked)}/>Kirim otomatis via WhatsApp</label>
     <button className="btn btn-outline-primary btn-sm" disabled={busy || !ts.length} onClick={zip}>Unduh semua PNG (ZIP)</button>
-    <button className="btn btn-primary btn-sm" disabled={busy || !todo.length} onClick={() => gen(todo)}>{busy ? 'Memproses…' : `Buat ${todo.length} tiket`}</button></div>
+    <button className={'btn btn-primary btn-sm' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy || !todo.length} onClick={() => gen(todo)}>{`Buat ${todo.length} tiket`}</button></div>
+    <MapsWarn loaded={sl} mapsOk={mapsOk}/>
     {msg && <div className="alert alert-info">{msg}</div>}
-    <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Peserta</th><th>Status tiket</th><th/></tr></thead><tbody>
-      {ps.map(p => { const t = by[p.id]; return <tr key={p.id}><td>{p.name}</td><td><Badge s={t ? t.status : 'belum'}/></td>
+    <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Peserta</th><th>No. tiket</th><th>Status tiket</th><th/></tr></thead><tbody>
+      {loading && <SkelRows rows={6} cols={4}/>}
+      {!loading && ps.map(p => { const t = by[p.id]; return <tr key={p.id}><td>{p.name}</td><td className="tk-code">{t ? showCode(t.id) : '-'}</td><td><Badge s={t ? t.status : 'belum'}/></td>
         <td className="text-end">{!t && <button className="btn btn-link btn-sm" disabled={busy} onClick={() => gen([p])}>Buat tiket</button>}
         {t && <button className="btn btn-link btn-sm" onClick={() => png(t, p)}>Unduh PNG</button>}
         {t?.status === 'aktif' && <button className="btn btn-link btn-sm text-danger" onClick={() => revoke(t)}>Cabut</button>}</td></tr> })}</tbody></table></div></>

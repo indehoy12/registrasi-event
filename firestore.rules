@@ -16,12 +16,17 @@ service cloud.firestore {
     // get dibuka agar peserta bisa membuka tautan tiketnya; kode tiket acak dan tidak bisa ditebak
     match /tickets/{id} {
       allow get: if true;
-      allow list: if admin();
+      allow list: if staff(); // petugas perlu mencari nomor tiket secara manual
       allow create: if admin();
       allow update: if admin() || (staff() && resource.data.status == 'aktif' && request.resource.data.status == 'terpakai'
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','usedAt','usedBy']));
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','usedAt','usedBy']))
+        // petugas boleh membatalkan check-in miliknya sendiri dalam 2 menit (salah scan)
+        || (staff() && resource.data.status == 'terpakai' && resource.data.usedBy == request.auth.token.email && request.time < resource.data.usedAt + duration.value(2, 'm')
+        && request.resource.data.status == 'aktif' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','usedAt','usedBy']));
     }
-    match /checkins/{id} { allow read: if staff(); allow create: if staff() && request.resource.data.officerEmail == request.auth.token.email; }
+    match /checkins/{id} { allow read: if staff(); allow create: if staff() && request.resource.data.officerEmail == request.auth.token.email; allow update: if admin() || (staff() && resource.data.officerEmail == request.auth.token.email && resource.data.isRepresentative == false
+        && request.resource.data.isRepresentative == true && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRepresentative','representativeName']));
+      allow delete: if admin() || (staff() && resource.data.officerEmail == request.auth.token.email && request.time < resource.data.checkedInAt + duration.value(2, 'm')); }
     match /auditLogs/{id} { allow read: if superadmin(); allow create: if staff(); }
   }
 }

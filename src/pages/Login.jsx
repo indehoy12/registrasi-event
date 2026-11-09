@@ -11,5 +11,5 @@ export default function Login({ noAccess }) {
     <form onSubmit={go}>
       <label className="form-label" htmlFor="em">Email</label><input id="em" className="form-control mb-3" type="email" autoComplete="username" value={e} onChange={x => setE(x.target.value)} required/>
       <label className="form-label" htmlFor="pw">Kata sandi</label><input id="pw" className="form-control mb-4" type="password" autoComplete="current-password" value={p} onChange={x => setP(x.target.value)} required/>
-      <button className="btn btn-primary w-100" disabled={busy}>{busy ? 'Memproses…' : 'Masuk'}</button></form></div></div>
+      <button className={'btn btn-primary w-100' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy}>Masuk</button></form></div></div>
 }

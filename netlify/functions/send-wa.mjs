@@ -38,7 +38,11 @@ export default async (req) => {
   const sm = await fsr('seminar/main', idToken), sf = sm.ok ? (await sm.json()).fields || {} : {}
   const title = sf.title?.stringValue || 'Seminar', time = sf.time?.stringValue, place = sf.location?.stringValue
   const date = sf.date?.stringValue ? new Date(sf.date.stringValue + 'T00:00:00Z').toLocaleDateString('id-ID', { dateStyle: 'full', timeZone: 'UTC' }) : ''
+  // Titik lokasi wajib ada; server menolak pengiriman bila belum diisi di menu Informasi seminar
+  const maps = sf.mapsUrl?.stringValue || ''
+  if (!/^https:\/\//.test(maps)) return json({ error: 'Titik lokasi Google Maps belum diisi. Isi di menu Informasi seminar sebelum mengirim tiket.' }, 400)
   const link = `${base}/tiket/${ticketId}`
+  const c8 = ticketId.replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase(), nomor = c8.slice(0, 4) + ' ' + c8.slice(4)
   const detail = [date && `Hari/Tanggal : ${date}`, time && `Waktu : pukul ${time.replace(':', '.')}`, place && `Tempat : ${place}`].filter(Boolean)
   const susun = (adaGambar) => [
     `Yth. Bapak/Ibu ${pf.name?.stringValue || ''},`,
@@ -48,13 +52,18 @@ export default async (req) => {
     `*${title}*`,
     ...detail,
     '',
+    'Titik lokasi (Google Maps):',
+    maps,
+    '',
     adaGambar
       ? 'Sebagai tanda masuk, kami sampaikan tiket elektronik berupa kode QR yang terlampir pada pesan ini. Mohon menunjukkan kode QR tersebut kepada petugas pada saat kedatangan.'
       : 'Sebagai tanda masuk, kami sampaikan tiket elektronik berupa kode QR yang dapat dibuka melalui tautan berikut. Mohon menunjukkannya kepada petugas pada saat kedatangan:',
     ...(adaGambar ? ['', 'Apabila kode QR tidak tampil, tiket dapat dibuka melalui tautan berikut:'] : []),
     link,
     '',
-    'Kode QR ini hanya berlaku untuk satu orang. Mohon tidak membagikannya kepada pihak lain.',
+    `Nomor tiket: *${nomor}* (sebutkan kepada petugas apabila kode QR tidak dapat dipindai).`,
+    '',
+    'Kode QR ini berlaku untuk satu kali registrasi. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.',
     '',
     'Atas perhatian dan kehadiran Bapak/Ibu, kami ucapkan terima kasih.',
     '',
