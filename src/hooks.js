@@ -41,6 +41,7 @@ export const parseTicketInput = (raw = '') => {
   return { code: c }
 }
 export const jam = (t) => t?.toDate ? t.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(':', '.') : ''
+<<<<<<< HEAD
 
 // Titik lokasi Google Maps: terima tautan resmi Google Maps (termasuk maps.app.goo.gl) atau koordinat "lat,lng"; selain itu ditolak.
 export function normMaps(v = '') {
@@ -68,3 +69,5 @@ export function coordsFromMaps(v = '') {
   const m = String(v).match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || String(v).match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || String(v).match(/[?&](?:q|query|ll)=(-?\d+\.\d+)(?:,|%2C)(-?\d+\.\d+)/i)
   return m && Math.abs(+m[1]) <= 90 && Math.abs(+m[2]) <= 180 ? { lat: +m[1], lng: +m[2] } : null
 }
+=======
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde

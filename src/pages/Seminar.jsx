@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'; import { doc, getDoc, setDoc } from 'firebase/firestore'; import { db } from '../firebase'; import { normMaps, mapsLink, coordsFromMaps } from '../hooks'; import { Skel } from '../ui'
 const MapPicker = lazy(() => import('../MapPicker'))
 export default function Seminar() {
+<<<<<<< HEAD
   const [f, setF] = useState({ title:'', date:'', time:'', location:'', mapsUrl:'', lat:null, lng:null, description:'' }), [msg, setMsg] = useState(null), [ready, setReady] = useState(false)
   useEffect(() => { getDoc(doc(db,'seminar','main')).then(s => s.exists() && setF(x => ({ ...x, ...s.data() }))).finally(() => setReady(true)) }, [])
   const maps = normMaps(f.mapsUrl), has = Number.isFinite(f.lat) && Number.isFinite(f.lng)
@@ -16,6 +17,14 @@ export default function Seminar() {
   return <><h1 className="h4">Informasi seminar</h1><p className="sub">Data ini tampil di halaman tiket dan dikirim bersama tiket lewat WhatsApp. Isi lengkap sebelum membuat dan mengirim tiket.</p>
     {msg && <div className={`alert alert-${msg.ok ? 'success' : 'danger'}`} role="status">{msg.t}</div>}
     {!ready ? <div className="panel" aria-busy="true" aria-label="Memuat informasi seminar"><Skel w="30%" className="mb-2"/><Skel h="2.4rem" r="8px" className="mb-3"/><Skel w="30%" className="mb-2"/><Skel h="2.4rem" r="8px" className="mb-3"/><Skel h="22rem" r="12px"/></div> :
+=======
+  const [f, setF] = useState({ title:'', date:'', time:'', location:'', description:'' }), [msg, setMsg] = useState('')
+  useEffect(() => { getDoc(doc(db,'seminar','main')).then(s => s.exists() && setF(s.data())) }, [])
+  const save = async (e) => { e.preventDefault(); try { await setDoc(doc(db,'seminar','main'), f); setMsg('Informasi seminar disimpan.') } catch { setMsg('Gagal menyimpan. Periksa koneksi atau hak akses akun Anda.') } }
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
+  return <><h1 className="h4">Informasi seminar</h1><p className="sub">Data ini tampil di halaman tiket yang dibuka peserta.</p>
+    {msg && <div className="alert alert-success">{msg}</div>}
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
     <form onSubmit={save} className="panel fgrid">
       <div className="s6"><label className="form-label">Judul seminar</label><input className="form-control" value={f.title} onChange={set('title')}/></div>
       <div className="s2"><label className="form-label">Tanggal</label><input className="form-control" type="date" value={f.date} onChange={set('date')}/></div>

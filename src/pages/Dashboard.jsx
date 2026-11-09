@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { Link } from 'react-router-dom'; import { useColState, useSeminar, fmt } from '../hooks'; import { Empty, Skel, SkelList, MapsWarn } from '../ui'
 export default function Dashboard() {
   const [ps, lp] = useColState('participants'), [cs, lc] = useColState('checkins', 'checkedInAt'), loading = lp || lc
@@ -5,6 +6,14 @@ export default function Dashboard() {
   const S = ({ i, l, v, t }) => <div className="stat"><div className={`stat-ic ${t}`}><i className={`bi bi-${i}`}/></div><div><div className="stat-v">{loading ? <Skel w="3rem" h="1.6rem"/> : v}</div><div className="stat-l">{l}</div></div></div>
   return <div className="fit"><div className="d-flex gap-2 flex-wrap align-items-start"><div className="me-auto"><h1 className="h4">Dashboard</h1><p className="sub">Ringkasan kehadiran, diperbarui langsung saat ada check-in.</p></div><Link className="btn btn-primary" to="/admin/scanner"><i className="bi bi-qr-code-scan"/>Mulai scan check-in</Link></div>
     <MapsWarn loaded={sl} mapsOk={mapsOk}/>
+=======
+import { Link } from 'react-router-dom'; import { useCol, fmt } from '../hooks'; import { Empty } from '../ui'
+export default function Dashboard() {
+  const ps = useCol('participants'), cs = useCol('checkins', 'checkedInAt')
+  const total = ps.length, hadir = cs.length, rep = cs.filter(c => c.isRepresentative).length, pct = total ? Math.round(hadir / total * 100) : 0
+  const S = ({ i, l, v, t }) => <div className="stat"><div className={`stat-ic ${t}`}><i className={`bi bi-${i}`}/></div><div><div className="stat-v">{v}</div><div className="stat-l">{l}</div></div></div>
+  return <div className="fit"><div className="d-flex gap-2 flex-wrap align-items-start"><div className="me-auto"><h1 className="h4">Dashboard</h1><p className="sub">Ringkasan kehadiran, diperbarui langsung saat ada check-in.</p></div><Link className="btn btn-primary" to="/admin/scanner"><i className="bi bi-qr-code-scan"/>Mulai scan check-in</Link></div>
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
     <div className="stats mb-3"><S i="people" l="Total peserta" v={total} t="t"/><S i="person-check" l="Sudah hadir" v={hadir} t="b"/>
       <S i="person-badge" l="Lewat perwakilan" v={rep} t="a"/><S i="hourglass-split" l="Belum hadir" v={Math.max(total - hadir, 0)} t="g"/></div>
     <div className="row g-3 fit-row"><div className="col-lg-5"><div className="panel h-100 mb-0"><div className="fw-semibold">Tingkat kehadiran</div><div className="pct">{loading ? <Skel w="5rem" h="2.4rem"/> : pct + '%'}</div>

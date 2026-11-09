@@ -1,7 +1,11 @@
 import { useDialog, Badge, SkelRows, MapsWarn } from '../ui'
 import { useState } from 'react'; import QRCode from 'qrcode'; import JSZip from 'jszip'
 import { addDoc, collection, doc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore'
+<<<<<<< HEAD
 import { useColState, useSeminar, wait, sendTicketWA, maskWa, maskEmail, showCode } from '../hooks'; import { auth, db } from '../firebase'
+=======
+import { useCol, wait, sendTicketWA, maskWa, maskEmail, showCode } from '../hooks'; import { auth, db } from '../firebase'
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
 const newToken = () => { const b = crypto.getRandomValues(new Uint8Array(24)); return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') }
 const save = (href, name) => { const a = document.createElement('a'); a.href = href; a.download = name; a.click() }
 export default function Tickets() {
@@ -36,8 +40,12 @@ export default function Tickets() {
     <MapsWarn loaded={sl} mapsOk={mapsOk}/>
     {msg && <div className="alert alert-info">{msg}</div>}
     <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Peserta</th><th>No. tiket</th><th>Status tiket</th><th/></tr></thead><tbody>
+<<<<<<< HEAD
       {loading && <SkelRows rows={6} cols={4}/>}
       {!loading && ps.map(p => { const t = by[p.id]; return <tr key={p.id}><td>{p.name}</td><td className="tk-code">{t ? showCode(t.id) : '-'}</td><td><Badge s={t ? t.status : 'belum'}/></td>
+=======
+      {ps.map(p => { const t = by[p.id]; return <tr key={p.id}><td>{p.name}</td><td className="tk-code">{t ? showCode(t.id) : '-'}</td><td><Badge s={t ? t.status : 'belum'}/></td>
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
         <td className="text-end">{!t && <button className="btn btn-link btn-sm" disabled={busy} onClick={() => gen([p])}>Buat tiket</button>}
         {t && <button className="btn btn-link btn-sm" onClick={() => png(t, p)}>Unduh PNG</button>}
         {t?.status === 'aktif' && <button className="btn btn-link btn-sm text-danger" onClick={() => revoke(t)}>Cabut</button>}</td></tr> })}</tbody></table></div></>

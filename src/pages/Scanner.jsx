@@ -2,14 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { addDoc, collection, deleteField, doc, getDoc, onSnapshot, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase'
+<<<<<<< HEAD
 import { ResultModal, CheckinModal, Skel, SkelList } from '../ui'
 import { useColState, fmt, jam, showCode, ticketCode, normCode, parseTicketInput } from '../hooks'
+=======
+import { ResultModal, CheckinModal } from '../ui'
+import { useCol, fmt, jam, showCode, ticketCode, normCode, parseTicketInput } from '../hooks'
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
 
 export default function Scanner() {
   const lock = useRef(false), codeRef = useRef(null), ckRef = useRef([])
   const [mode, setMode] = useState('kamera')              // 'kamera' | 'manual'
   const [tickets, setTickets] = useState([]), [listErr, setListErr] = useState(false)
   const [res, setRes] = useState(null), [busy, setBusy] = useState(false), [note, setNote] = useState('')
+<<<<<<< HEAD
   const [camErr, setCamErr] = useState(''), [camKey, setCamKey] = useState(0), [camReady, setCamReady] = useState(false)
   const [code, setCode] = useState(''), [manualErr, setManualErr] = useState('')
   const [checkins, loadCk] = useColState('checkins', 'checkedInAt'), [tkLoaded, setTkLoaded] = useState(false)
@@ -18,6 +24,16 @@ export default function Scanner() {
   useEffect(() => onSnapshot(collection(db, 'tickets'),
     s => { setTickets(s.docs.map(d => ({ id: d.id, ...d.data() }))); setListErr(false); setTkLoaded(true) },
     e => { console.error('Gagal membaca tiket:', e.code); setListErr(true); setTkLoaded(true) }), [])
+=======
+  const [camErr, setCamErr] = useState(''), [camKey, setCamKey] = useState(0)
+  const [code, setCode] = useState(''), [manualErr, setManualErr] = useState('')
+  const checkins = useCol('checkins', 'checkedInAt')
+
+  // Daftar tiket (live) dipakai untuk pencarian nomor tiket dan penghitung kehadiran
+  useEffect(() => onSnapshot(collection(db, 'tickets'),
+    s => { setTickets(s.docs.map(d => ({ id: d.id, ...d.data() }))); setListErr(false) },
+    e => { console.error('Gagal membaca tiket:', e.code); setListErr(true) }), [])
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
 
   ckRef.current = checkins
   const aktif = tickets.filter(t => t.status !== 'dicabut'), hadir = aktif.filter(t => t.status === 'terpakai').length
@@ -62,7 +78,11 @@ export default function Scanner() {
   // Kamera hanya menyala saat tab "Scan kamera" aktif
   useEffect(() => {
     if (mode !== 'kamera') return
+<<<<<<< HEAD
     setCamErr(''); setCamReady(false); lock.current = false
+=======
+    setCamErr(''); lock.current = false
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
     const s = new Html5Qrcode('reader')
     const started = s.start({ facingMode: 'environment' }, { fps: 10, qrbox: 250 }, async (text) => {
       if (lock.current) return; lock.current = true
@@ -75,12 +95,17 @@ export default function Scanner() {
         if (msg) throw Object.assign(new Error(msg), { warn: t.status === 'terpakai' })
         await checkIn(t.id, 'qr')
       } catch (e) { setRes({ ok: false, warn: !!e.warn, title: e.warn ? 'Tiket sudah dipakai' : 'Tiket tidak valid', text: e.message }) }
+<<<<<<< HEAD
     }).then(() => setCamReady(true)).catch(() => setCamErr('Kamera tidak dapat dibuka. Izinkan akses kamera di browser lalu tekan "Coba lagi", atau gunakan tab Input manual.'))
+=======
+    }).catch(() => setCamErr('Kamera tidak dapat dibuka. Izinkan akses kamera di browser lalu tekan "Coba lagi", atau gunakan tab Input manual.'))
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
     return () => { started.then(() => s.isScanning && s.stop()).then(() => s.clear()).catch(() => {}) }
   }, [mode, camKey])
 
   const ganti = (m) => { if (m === mode) return; setMode(m); setManualErr(''); if (m === 'manual') setTimeout(() => codeRef.current?.focus(), 50) }
 
+<<<<<<< HEAD
   // Pencarian langsung (live): hasil muncul setiap ketikan; nama, instansi, nomor tiket, atau tautan tiket. Satu sentuhan = check-in.
   const q = code.trim(), qn = normCode(q), ql = q.toLowerCase()
   const isLink = /\/tiket\/|^[\w-]{16,80}$/.test(q)
@@ -94,6 +119,22 @@ export default function Scanner() {
     lock.current = true; setBusy(true); await checkIn(t.id, 'manual'); setBusy(false)
   }
   const cari = (e) => { e.preventDefault(); if (hits.length === 1) pilih(hits[0]) }
+=======
+  // Pencarian manual: nomor tiket 8 karakter, tautan tiket, atau kode panjang
+  const cari = async (e) => {
+    e.preventDefault(); setManualErr('')
+    const p = parseTicketInput(code); if (p.error) return setManualErr(p.error)
+    const found = p.token ? tickets.find(t => t.id === p.token)
+      : tickets.filter(t => normCode(ticketCode(t.id)) === p.code)
+    if (listErr) return setManualErr('Pencarian manual belum bisa dipakai karena akses data tiket ditolak. Minta Super Admin mem-publish firestore.rules versi terbaru.')
+    const list = [].concat(found || [])
+    if (!list.length) return setManualErr('Nomor tiket tidak ditemukan. Periksa kembali, huruf O dan angka 0 dianggap sama.')
+    if (list.length > 1) return setManualErr('Ada lebih dari satu tiket dengan nomor ini. Pindai QR-nya untuk memastikan.')
+    const msg = cekStatus(list[0]); if (msg) { lock.current = true; return setRes({ ok: false, warn: list[0].status === 'terpakai', title: list[0].status === 'terpakai' ? 'Tiket sudah dipakai' : 'Tiket tidak valid', text: msg }) }
+    if (busy) return
+    lock.current = true; setBusy(true); await checkIn(list[0].id, 'manual'); setBusy(false)
+  }
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
 
   // Salah scan: tiket kembali aktif dan catatan hadir dihapus (hanya petugas yang membuatnya, dalam 2 menit; dijaga firestore.rules)
   const batal = async () => {
@@ -114,7 +155,11 @@ export default function Scanner() {
   return <>
     <div className="d-flex gap-2 flex-wrap align-items-end">
       <div className="me-auto"><h1 className="h4">Scan dan check-in</h1><p className="sub mb-0">Arahkan kamera ke QR tiket. Peserta langsung tercatat hadir.</p></div>
+<<<<<<< HEAD
       <div className="scan-count" aria-live="polite">{tkLoaded ? <><b>{hadir}</b><span> / {aktif.length}</span><small>sudah check-in</small></> : <Skel w="9rem" h="2rem" r="10px"/>}</div>
+=======
+      <div className="scan-count" aria-live="polite"><b>{hadir}</b><span> / {aktif.length}</span><small>sudah check-in</small></div>
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
     </div>
     {note && <div className="alert alert-warning mt-3 mb-0" role="status"><i className="bi bi-arrow-counterclockwise"/> {note}</div>}
     <div className="scan mt-3">
@@ -122,6 +167,7 @@ export default function Scanner() {
         <div className="scan-tabs" role="tablist"><Tab m="kamera" icon="qr-code-scan" label="Scan kamera"/><Tab m="manual" icon="keyboard" label="Input manual"/></div>
         {mode === 'kamera' ? <>
           {camErr && <div className="alert alert-danger d-flex gap-2 align-items-center flex-wrap"><span className="flex-fill">{camErr}</span><button className="btn btn-sm btn-outline-danger" onClick={() => setCamKey(k => k + 1)}>Coba lagi</button></div>}
+<<<<<<< HEAD
           <div className="reader-wrap"><div id="reader"/>{!camReady && !camErr && <div className="reader-skel" aria-busy="true" aria-label="Membuka kamera"><Skel h="100%" r="14px"/></div>}</div>
           <p className="small text-muted mt-2 mb-0">QR tidak terbaca atau peserta lupa membawa tiket? Pilih tab <b>Input manual</b> lalu cari berdasarkan nama.</p>
         </> : <form className="panel" onSubmit={cari}>
@@ -138,6 +184,17 @@ export default function Scanner() {
             {hits.length > 6 && <div className="small text-muted text-center py-1">Masih ada {hits.length - 6} hasil lain. Ketik lebih lengkap untuk mempersempit.</div>}
             {!hits.length && <div className="text-muted text-center py-3">Tidak ditemukan. Periksa ejaan nama atau nomor tiket.</div>}
           </div>}
+=======
+          <div id="reader"/>
+          <p className="small text-muted mt-2 mb-0">QR tidak terbaca atau peserta hanya membawa nomor tiket? Pilih tab <b>Input manual</b>.</p>
+        </> : <form className="panel" onSubmit={cari}>
+          <label htmlFor="kode" className="form-label fw-semibold">Nomor tiket</label>
+          <input id="kode" ref={codeRef} className={'form-control code-input' + (manualErr ? ' is-invalid' : '')} placeholder="RHEH NH0K" value={code} autoComplete="off" autoCapitalize="characters" spellCheck="false"
+            onChange={e => { setCode(e.target.value); setManualErr('') }}/>
+          {manualErr && <div className="invalid-feedback d-block">{manualErr}</div>}
+          <div className="form-text">Nomor tiket tercantum di halaman tiket peserta (8 huruf/angka). Huruf besar atau kecil dan spasi tidak masalah. Begitu ditemukan, peserta langsung check-in.</div>
+          <button className="btn btn-primary w-100 mt-3" disabled={!code.trim() || busy}>{busy ? 'Memproses…' : <><i className="bi bi-check2-circle"/>Check-in</>}</button>
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
         </form>}
       </div>
       <div>
@@ -145,9 +202,14 @@ export default function Scanner() {
           {mode === 'kamera' ? 'Menunggu QR tiket…' : 'Menunggu nomor tiket…'}<div className="small">Hasil check-in muncul sebagai popup.</div></div>
         <div className="panel">
           <div className="fw-semibold mb-1">Check-in terakhir</div>
+<<<<<<< HEAD
           {loadCk && <SkelList rows={3}/>}
           {!loadCk && checkins.slice(0, 5).map(c => <div className="recent" key={c.id}><div><div>{c.participantName}</div>{c.isRepresentative && <small>Diwakili {c.representativeName}</small>}</div><small>{jam(c.checkedInAt)}</small></div>)}
           {!loadCk && !checkins.length && <div className="small text-muted">Belum ada yang check-in.</div>}
+=======
+          {checkins.slice(0, 5).map(c => <div className="recent" key={c.id}><div><div>{c.participantName}</div>{c.isRepresentative && <small>Diwakili {c.representativeName}</small>}</div><small>{jam(c.checkedInAt)}</small></div>)}
+          {!checkins.length && <div className="small text-muted">Belum ada yang check-in.</div>}
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
         </div>
       </div>
     </div>

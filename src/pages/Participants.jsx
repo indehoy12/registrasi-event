@@ -29,7 +29,11 @@ export default function Participants() {
         <div className="col-md" key={k}><input className={'form-control' + (fe[k] ? ' is-invalid' : '')} placeholder={p} value={f[k]} type={k==='whatsapp' ? 'tel' : 'text'} inputMode={k==='whatsapp' ? 'numeric' : undefined} onChange={e=>{setF({...f,[k]:e.target.value}); if (fe[k]) setFe({...fe,[k]:''})}}/>
           {fe[k] && <div className="invalid-feedback">{fe[k]}</div>}</div>)}
       <div className="col-auto d-flex gap-2"><button className="btn btn-primary">{edit ? 'Simpan perubahan' : 'Tambah peserta'}</button>{edit && <button type="button" className="btn btn-outline-secondary" onClick={() => { setEdit(null); setF(empty); setFe({}) }}>Batal</button>}</div></form></div>
+<<<<<<< HEAD
     <input className="form-control mb-2" placeholder="Cari nama, email, instansi, atau nomor WhatsApp (hasil langsung muncul)" type="search" autoComplete="off" value={q} onChange={e=>setQ(e.target.value)}/>
+=======
+    <input className="form-control mb-2" placeholder="Cari nama, email, instansi" value={q} onChange={e=>setQ(e.target.value)}/>
+>>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
     <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Nama</th><th>Email</th><th>WhatsApp</th><th>Instansi</th><th>Status</th><th/></tr></thead><tbody>
       {loading && <SkelRows rows={6} cols={6}/>}
       {!loading && list.map(r => <tr key={r.id}><td>{r.name}</td><td>{r.email}</td><td>{r.whatsapp}</td><td>{r.institution}</td><td><Badge s={r.status}/></td>
