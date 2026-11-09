@@ -39,6 +39,7 @@ export default async (req) => {
   const title = sf.title?.stringValue || 'Seminar', time = sf.time?.stringValue, place = sf.location?.stringValue
   const date = sf.date?.stringValue ? new Date(sf.date.stringValue + 'T00:00:00Z').toLocaleDateString('id-ID', { dateStyle: 'full', timeZone: 'UTC' }) : ''
   const link = `${base}/tiket/${ticketId}`
+  const c8 = ticketId.replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase(), nomor = c8.slice(0, 4) + ' ' + c8.slice(4)
   const detail = [date && `Hari/Tanggal : ${date}`, time && `Waktu : pukul ${time.replace(':', '.')}`, place && `Tempat : ${place}`].filter(Boolean)
   const susun = (adaGambar) => [
     `Yth. Bapak/Ibu ${pf.name?.stringValue || ''},`,
@@ -54,7 +55,9 @@ export default async (req) => {
     ...(adaGambar ? ['', 'Apabila kode QR tidak tampil, tiket dapat dibuka melalui tautan berikut:'] : []),
     link,
     '',
-    'Kode QR ini hanya berlaku untuk satu orang. Mohon tidak membagikannya kepada pihak lain.',
+    `Nomor tiket: *${nomor}* (sebutkan kepada petugas apabila kode QR tidak dapat dipindai).`,
+    '',
+    'Kode QR ini berlaku untuk satu kali registrasi. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.',
     '',
     'Atas perhatian dan kehadiran Bapak/Ibu, kami ucapkan terima kasih.',
     '',

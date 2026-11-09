@@ -144,3 +144,39 @@ html{font-size:clamp(14px,6px + .35vw + .35vh,16px)}
 .tk-desc{color:#475467;font-size:.9rem;margin:.4rem 0 0}
 .tk-rules{padding-left:1.1rem;color:#475467;font-size:.9rem;margin-bottom:1.3rem}.tk-rules li{margin-bottom:.35rem}
 .tk-foot{text-align:center;color:var(--muted);font-size:.78rem;margin:1rem 0 0}
+/* scanner: tab, nomor tiket, pilihan hadir */
+.scan-tabs{display:flex;gap:.25rem;background:#eceff3;border-radius:12px;padding:.25rem;margin-bottom:.9rem}
+.scan-tab{flex:1;border:0;background:none;border-radius:9px;padding:.55rem .5rem;font-weight:600;color:#475467;display:flex;align-items:center;justify-content:center;gap:.4rem}
+.scan-tab.on{background:#fff;color:var(--brand-d);box-shadow:0 1px 3px rgba(16,24,40,.12)}
+.scan-count{background:var(--brand-soft);color:var(--brand-d);border-radius:99px;padding:.4rem .9rem;font-size:.9rem;font-weight:500}
+.code-input{font-family:ui-monospace,Consolas,'DejaVu Sans Mono',monospace;font-size:1.5rem;letter-spacing:.12em;text-transform:uppercase;text-align:center;min-height:3.4rem}
+.code-chip{display:inline-block;font-family:ui-monospace,Consolas,'DejaVu Sans Mono',monospace;font-weight:700;letter-spacing:.1em;background:#f2f4f7;border-radius:8px;padding:.2rem .6rem}
+.who{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.who button{border:2px solid #d0d5dd;background:#fff;border-radius:12px;padding:.8rem .5rem;font-weight:600;color:#475467;display:flex;flex-direction:column;align-items:center;gap:.2rem;min-height:4.2rem}
+.who button i{font-size:1.4rem}
+.who button.on{border-color:var(--brand);background:var(--brand-soft);color:var(--brand-d)}
+.tk-code{font-family:ui-monospace,Consolas,'DejaVu Sans Mono',monospace;letter-spacing:.1em}
+
+/* popup check-in */
+.ck-rep{background:#ecfdf3;color:#067647;border-radius:10px;padding:.5rem .75rem;margin-top:.25rem}
+.ck-bar{height:3px;border-radius:3px;background:#12b76a;margin-top:1rem;transform-origin:left;animation:ckbar 4.5s linear forwards}
+@keyframes ckbar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.mdl .btn-lg{min-height:3.3rem}
+/* banner di HP peserta */
+.tk-banner{position:sticky;top:0;z-index:20;display:flex;gap:.75rem;align-items:center;background:#12b76a;color:#fff;padding:.9rem 1rem;box-shadow:0 4px 14px rgba(6,118,71,.35);animation:tkin .45s ease-out}
+.tk-banner i{font-size:1.8rem}.tk-banner b{display:block;font-size:1.05rem}.tk-banner small{opacity:.92}
+@keyframes tkin{from{transform:translateY(-100%);opacity:0}to{transform:none;opacity:1}}
+.tk-qr.used img{opacity:.25;filter:grayscale(1)}
+
+.ai.warn circle,.ai.warn path{stroke:#f59e0b}.ai.warn{filter:drop-shadow(0 6px 14px rgba(245,158,11,.3))}
+.ai.warn path.ai-m2{stroke-width:5}
+.scan-count{display:flex;align-items:baseline;gap:.35rem;border-radius:16px;padding:.5rem 1rem}
+.scan-count b{font-size:2rem;line-height:1}.scan-count span{font-size:1.1rem;font-weight:600}.scan-count small{font-size:.8rem}
+.tk-qr img{max-width:340px}
+.tk-bright{display:flex;gap:.4rem;justify-content:center;align-items:center;color:#b54708;background:#fffaeb;border-radius:10px;padding:.4rem .7rem;font-size:.85rem;margin:.6rem 0 0}
+.tk-fold{border-top:1px solid var(--line);margin-top:1rem}
+.tk-fold summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:1rem 0 .5rem;min-height:2.75rem}
+.tk-fold summary::-webkit-details-marker{display:none}.tk-fold summary::after{content:'\F282';font-family:bootstrap-icons;transition:transform .2s}
+.tk-fold[open] summary::after{transform:rotate(180deg)}
+.tk-fold>h2{display:none}
+.tk-nomor{text-align:center;color:var(--muted);font-size:.8rem;margin:.9rem 0 .2rem}

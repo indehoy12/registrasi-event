@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'; import { doc, getDoc, setDoc } from
 export default function Seminar() {
   const [f, setF] = useState({ title:'', date:'', time:'', location:'', description:'' }), [msg, setMsg] = useState('')
   useEffect(() => { getDoc(doc(db,'seminar','main')).then(s => s.exists() && setF(s.data())) }, [])
-  const save = async (e) => { e.preventDefault(); await setDoc(doc(db,'seminar','main'), f); setMsg('Informasi seminar disimpan.') }
+  const save = async (e) => { e.preventDefault(); try { await setDoc(doc(db,'seminar','main'), f); setMsg('Informasi seminar disimpan.') } catch { setMsg('Gagal menyimpan. Periksa koneksi atau hak akses akun Anda.') } }
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
   return <><h1 className="h4">Informasi seminar</h1><p className="sub">Data ini tampil di halaman tiket yang dibuka peserta.</p>
     {msg && <div className="alert alert-success">{msg}</div>}

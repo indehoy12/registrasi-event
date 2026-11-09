@@ -29,7 +29,7 @@ export default function Participants() {
       {[['name','Nama lengkap *'],['whatsapp','WhatsApp * (08… atau 628…)'],['email','Email (opsional)'],['institution','Asal instansi (opsional)']].map(([k,p]) =>
         <div className="col-md" key={k}><input className={'form-control' + (fe[k] ? ' is-invalid' : '')} placeholder={p} value={f[k]} type={k==='whatsapp' ? 'tel' : 'text'} inputMode={k==='whatsapp' ? 'numeric' : undefined} onChange={e=>{setF({...f,[k]:e.target.value}); if (fe[k]) setFe({...fe,[k]:''})}}/>
           {fe[k] && <div className="invalid-feedback">{fe[k]}</div>}</div>)}
-      <div className="col-auto"><button className="btn btn-primary">{edit ? 'Simpan perubahan' : 'Tambah peserta'}</button></div></form></div>
+      <div className="col-auto d-flex gap-2"><button className="btn btn-primary">{edit ? 'Simpan perubahan' : 'Tambah peserta'}</button>{edit && <button type="button" className="btn btn-outline-secondary" onClick={() => { setEdit(null); setF(empty); setFe({}) }}>Batal</button>}</div></form></div>
     <input className="form-control mb-2" placeholder="Cari nama, email, instansi" value={q} onChange={e=>setQ(e.target.value)}/>
     <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Nama</th><th>Email</th><th>WhatsApp</th><th>Instansi</th><th>Status</th><th/></tr></thead><tbody>
       {list.map(r => <tr key={r.id}><td>{r.name}</td><td>{r.email}</td><td>{r.whatsapp}</td><td>{r.institution}</td><td><Badge s={r.status}/></td>
