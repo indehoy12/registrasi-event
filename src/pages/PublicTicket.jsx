@@ -1,28 +1,16 @@
 import { useEffect, useRef, useState } from 'react'; import { useParams } from 'react-router-dom'
-<<<<<<< HEAD
-import { doc, getDoc, onSnapshot } from 'firebase/firestore'; import QRCode from 'qrcode'; import { db } from '../firebase'; import { jam, tgl, showCode, normMaps } from '../hooks'; import { Skel } from '../ui'
-=======
-import { doc, getDoc, onSnapshot } from 'firebase/firestore'; import QRCode from 'qrcode'; import { db } from '../firebase'; import { jam, tgl, showCode } from '../hooks'
->>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
+import { doc, getDoc, onSnapshot } from 'firebase/firestore'; import QRCode from 'qrcode'; import { db } from '../firebase'; import { jam, tgl, showCode, normMaps, coordsFromMaps } from '../hooks'; import { Skel } from '../ui'
 
 const wrap = (x, text, max) => { const out = []; let line = ''
   String(text).split(' ').forEach(w => { const t = line ? line + ' ' + w : w; if (x.measureText(t).width > max && line) { out.push(line); line = w } else line = t }); if (line) out.push(line); return out }
 
 export default function PublicTicket() {
-<<<<<<< HEAD
   const { token } = useParams(), [t, setT] = useState(null), [sem, setSem] = useState({}), [img, setImg] = useState(''), [err, setErr] = useState(''), [semReady, setSemReady] = useState(false)
-=======
-  const { token } = useParams(), [t, setT] = useState(null), [sem, setSem] = useState({}), [img, setImg] = useState(''), [err, setErr] = useState('')
->>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
   const prev = useRef(null)
   // QR dan info seminar dimuat sekali; status tiket dipantau langsung agar banner muncul otomatis saat petugas check-in
   useEffect(() => { (async () => { try {
     setImg(await QRCode.toDataURL(token, { width: 700, margin: 2 }))
-<<<<<<< HEAD
     const m = await getDoc(doc(db, 'seminar', 'main')); if (m.exists()) setSem(m.data()); setSemReady(true) } catch { setSemReady(true); setErr('Tiket tidak dapat dimuat saat ini. Silakan muat ulang halaman atau coba beberapa saat lagi.') } })() }, [token])
-=======
-    const m = await getDoc(doc(db, 'seminar', 'main')); if (m.exists()) setSem(m.data()) } catch { setErr('Tiket tidak dapat dimuat saat ini. Silakan muat ulang halaman atau coba beberapa saat lagi.') } })() }, [token])
->>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
   useEffect(() => onSnapshot(doc(db, 'tickets', token),
     s => { if (!s.exists()) return setErr('Tiket tidak ditemukan. Mohon periksa kembali tautan yang Anda terima atau hubungi panitia penyelenggara.')
       const d = s.data(); if (prev.current === 'aktif' && d.status === 'terpakai') navigator.vibrate?.([100, 60, 100]); prev.current = d.status; setT(d); setErr('') },
@@ -31,7 +19,7 @@ export default function PublicTicket() {
   const kode = showCode(token)
   const waktu = sem.time ? `Pukul ${sem.time.replace(':', '.')}` : ''
   const peserta = t && [['Nama lengkap', t.participantName], ['Instansi', t.institution], ['Email', t.emailMasked], ['Nomor WhatsApp', t.waMasked], ['Nomor tiket', kode]].filter(r => r[1])
-  const peta = normMaps(sem.mapsUrl)
+  const peta = normMaps(sem.mapsUrl), pt = peta ? coordsFromMaps(peta) : null
   const acara = [['Hari/Tanggal', tgl(sem.date)], ['Waktu', waktu], ['Tempat', sem.location]].filter(r => r[1])
 
   // Tiket lengkap (nama, data kegiatan, QR) sebagai satu gambar PNG
@@ -55,11 +43,8 @@ export default function PublicTicket() {
 
   return <div className="tk-wrap">
     {err && <div className="alert alert-danger m-3">{err}</div>}
-<<<<<<< HEAD
     {!t && !err && <div className="tk" aria-busy="true" aria-label="Memuat tiket"><div className="tk-head"><Skel w="40%" h=".8rem" className="mb-2"/><Skel w="75%" h="1.6rem"/></div>
       <div className="tk-body"><Skel h="2.6rem" r="10px" className="mb-3"/><div className="text-center mb-3"><Skel w="240px" h="240px" r="12px"/></div><Skel w="90%" className="mb-2"/><Skel w="60%" className="mb-4"/><Skel h="1rem" className="mb-2"/><Skel h="1rem" className="mb-2"/><Skel h="1rem"/></div></div>}
-=======
->>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
     {t && t.status === 'terpakai' && <div className="tk-banner" role="status" aria-live="polite"><i className="bi bi-check-circle-fill"/><div><b>Registrasi berhasil. Silakan masuk.</b>{t.usedAt && <small>Tercatat hadir pukul {jam(t.usedAt)}</small>}</div></div>}
     {t && <div className="tk">
       <div className="tk-head"><div className="tk-eyebrow">Tiket Masuk Peserta</div><h1>{sem.title || 'Seminar'}</h1></div>
@@ -68,11 +53,7 @@ export default function PublicTicket() {
 
         {t.status === 'dicabut' && <div className="tk-status off"><i className="bi bi-slash-circle-fill"/> Tiket ini telah dinonaktifkan oleh panitia dan tidak dapat digunakan. Silakan menghubungi panitia penyelenggara.</div>}
 
-<<<<<<< HEAD
         <div className={`tk-qr ${t.status === 'terpakai' ? 'used' : ''}`}>{img ? <img src={img} alt="Kode QR tiket"/> : <Skel w="min(300px,100%)" h="300px" r="12px"/>}</div>
-=======
-        <div className={`tk-qr ${t.status === 'terpakai' ? 'used' : ''}`}><img src={img} alt="Kode QR tiket"/></div>
->>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
         <p className="tk-hint">Tunjukkan kode QR ini kepada petugas registrasi pada saat kedatangan. Jika QR tidak dapat dipindai, sebutkan <b>Nomor tiket</b> di bawah.</p>
         {t.status === 'aktif' && <div className="tk-bright"><i className="bi bi-brightness-high-fill"/> Naikkan kecerahan layar agar QR mudah dipindai</div>}
         <div className="tk-nomor">Nomor tiket<div className="tk-code fs-3">{kode}</div></div>
@@ -81,13 +62,11 @@ export default function PublicTicket() {
         <dl className="tk-list">{peserta.map(([k, v]) => <div key={k}><dt>{k}</dt><dd className={k === 'Nomor tiket' ? 'tk-code' : ''}>{v}</dd></div>)}</dl>
 
         <details className="tk-fold" open><summary>Informasi kegiatan</summary>
-<<<<<<< HEAD
         {!semReady && <div aria-busy="true" aria-label="Memuat informasi kegiatan"><Skel h="1rem" className="mb-2"/><Skel w="80%" h="1rem" className="mb-2"/><Skel w="60%" h="1rem"/></div>}
         <dl className="tk-list">{acara.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+        {pt && <iframe className="map-prev" title="Peta lokasi acara" loading="lazy" referrerPolicy="no-referrer-when-downgrade"
+          src={`https://www.openstreetmap.org/export/embed.html?bbox=${pt.lng - .004}%2C${pt.lat - .0025}%2C${pt.lng + .004}%2C${pt.lat + .0025}&layer=mapnik&marker=${pt.lat}%2C${pt.lng}`}/>}
         {peta && <a className="btn btn-outline-primary w-100 mb-2" href={peta} target="_blank" rel="noopener noreferrer"><i className="bi bi-geo-alt-fill"/> Buka lokasi di Google Maps</a>}
-=======
-        <dl className="tk-list">{acara.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
->>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
         {sem.description && <p className="tk-desc">{sem.description}</p>}</details>
 
         <details className="tk-fold"><summary>Ketentuan</summary>
@@ -99,11 +78,7 @@ export default function PublicTicket() {
           <li>Apabila terdapat kendala, silakan menghubungi panitia penyelenggara.</li>
         </ol></details>
 
-<<<<<<< HEAD
         <button className="btn btn-primary w-100 mt-3" disabled={!img} onClick={unduh}><i className="bi bi-download"/> Unduh tiket (PNG)</button>
-=======
-        <button className="btn btn-primary w-100 mt-3" onClick={unduh}><i className="bi bi-download"/> Unduh tiket (PNG)</button>
->>>>>>> 81c392ca076f8f4a1e06897c9f6643caf77f7dde
         <p className="tk-foot">Tiket ini diterbitkan secara elektronik oleh panitia penyelenggara dan sah tanpa tanda tangan.</p>
       </div></div>}
   </div>

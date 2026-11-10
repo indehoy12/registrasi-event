@@ -15,3 +15,10 @@ Pengiriman memakai Netlify Function `netlify/functions/send-wa.mjs`. Isi environ
 - Pesan berisi nama, judul, tanggal, waktu, tempat, gambar QR (`/qr/<kode>.png`), dan tautan tiket cadangan.
 - Lampiran gambar hanya diterima Fonnte pada paket Super/Advanced/Ultra. Di paket lain, sistem otomatis mengirim pesan teks + tautan tiket.
 - Yang gagal terkirim tetap berstatus "Belum" di menu Distribusi dan bisa dikirim ulang.
+
+## Titik lokasi (Google Maps)
+- Menu **Info seminar**: cari nama tempat, pakai "Lokasi saya", sentuh peta, atau geser pin. Tautan Google Maps terisi otomatis dan wajib ada sebelum tiket dibuat/dikirim.
+- Peta memakai Leaflet + OpenStreetMap, pencarian tempat memakai Nominatim (cukup untuk pemakaian admin yang ringan).
+- Tautan pendek (maps.app.goo.gl) tetap bisa ditempel; pin di peta dihapus karena koordinatnya tidak bisa dibaca.
+- Titik dikirim di pesan WhatsApp dan tampil di tiket peserta (peta mini + tombol Google Maps).
+- Setelah `npm install`, pastikan paket `leaflet` terpasang (sudah ada di package.json).
