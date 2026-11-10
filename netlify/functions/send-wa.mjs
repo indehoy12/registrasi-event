@@ -61,8 +61,6 @@ export default async (req) => {
     ...(adaGambar ? ['', 'Apabila kode QR tidak tampil, tiket dapat dibuka melalui tautan berikut:'] : []),
     link,
     '',
-    `Nomor tiket: *${nomor}* (sebutkan kepada petugas apabila kode QR tidak dapat dipindai).`,
-    '',
     'Kode QR ini berlaku untuk satu kali registrasi. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.',
     '',
     'Atas perhatian dan kehadiran Bapak/Ibu, kami ucapkan terima kasih.',
