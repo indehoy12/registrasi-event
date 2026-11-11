@@ -16,11 +16,36 @@ export const validWa = (n) => /^62\d{8,13}$/.test(n)
 export const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(e)
 export const ticketLink = (id) => `${location.origin}/tiket/${id}`
 export const wait = (ms) => new Promise(r => setTimeout(r, ms))
+// Selama pengiriman massal berjalan (dijalankan dari browser): minta konfirmasi bila tab hendak ditutup dan tahan layar agar tidak mati.
+export function useJagaProses(aktif) {
+  useEffect(() => {
+    if (!aktif) return
+    const h = (e) => { e.preventDefault(); e.returnValue = '' }; window.addEventListener('beforeunload', h)
+    let lock = null, batal = false
+    const ambil = () => navigator.wakeLock?.request('screen').then(l => { if (batal) l.release(); else lock = l }).catch(() => {})
+    ambil(); const vis = () => document.visibilityState === 'visible' && ambil(); document.addEventListener('visibilitychange', vis)
+    return () => { batal = true; window.removeEventListener('beforeunload', h); document.removeEventListener('visibilitychange', vis); lock?.release().catch(() => {}) }
+  }, [aktif])
+}
 // Memicu pengiriman tiket lewat Netlify Function; mengembalikan { via: 'fonnte-gambar' | 'fonnte', note }
 export async function sendTicketWA(ticketId) {
   const r = await fetch('/.netlify/functions/send-wa', { method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser.getIdToken()}` }, body: JSON.stringify({ ticketId }) })
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Gagal mengirim.'); return j
+}
+// Kegiatan 1 atau 2 hari: setiap hari punya kunci tanggal (YYYY-MM-DD). QR yang sama dipakai di semua hari, check-in dicatat per hari.
+export const hariKunci = () => new Date().toLocaleDateString('sv-SE')
+export const hariList = (sem = {}) => { const d = [sem.date, sem.date2].filter(Boolean); return d.length ? d : ['hari-1'] }
+export const hariAktif = (days) => { const t = hariKunci(); return days.includes(t) ? t : (days[0] > t ? days[0] : days[days.length - 1]) }
+export const hariLabel = (days, d) => { const tg = /^\d{4}-/.test(d) ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : ''
+  return days.length > 1 ? `Hari ${days.indexOf(d) + 1}${tg ? ' · ' + tg : ''}` : (tg || 'Hari ini') }
+// Waktu check-in tiket pada hari tertentu (tiket lama berstatus 'terpakai' dianggap hadir di hari pertama)
+export const usedOn = (t, d, days) => t?.usedDays?.[d] || (t?.status === 'terpakai' && d === days[0] ? (t.usedAt || true) : null)
+export const ckDay = (c, days) => c.day || days[0]
+export async function sendTicketEmail(ticketId) {
+  const r = await fetch('/.netlify/functions/send-email', { method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser.getIdToken()}` }, body: JSON.stringify({ ticketId }) })
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Gagal mengirim email.'); return j
 }
 export const tgl = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 export const maskWa = (n = '') => { const d = waNumber(n); return d.length > 7 ? '+' + d.slice(0, 4) + '•'.repeat(d.length - 7) + d.slice(-3) : '' }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'; import { useParams } from 'react-router-dom'
-import { doc, getDoc, onSnapshot } from 'firebase/firestore'; import QRCode from 'qrcode'; import { db } from '../firebase'; import { jam, tgl, showCode, normMaps, coordsFromMaps } from '../hooks'; import { Skel } from '../ui'
+import { doc, getDoc, onSnapshot } from 'firebase/firestore'; import QRCode from 'qrcode'; import { db } from '../firebase'; import { jam, tgl, showCode, normMaps, coordsFromMaps, hariList, hariAktif, hariLabel, usedOn } from '../hooks'; import { Skel } from '../ui'
 
 const wrap = (x, text, max) => { const out = []; let line = ''
   String(text).split(' ').forEach(w => { const t = line ? line + ' ' + w : w; if (x.measureText(t).width > max && line) { out.push(line); line = w } else line = t }); if (line) out.push(line); return out }
@@ -13,14 +13,16 @@ export default function PublicTicket() {
     const m = await getDoc(doc(db, 'seminar', 'main')); if (m.exists()) setSem(m.data()); setSemReady(true) } catch { setSemReady(true); setErr('Tiket tidak dapat dimuat saat ini. Silakan muat ulang halaman atau coba beberapa saat lagi.') } })() }, [token])
   useEffect(() => onSnapshot(doc(db, 'tickets', token),
     s => { if (!s.exists()) return setErr('Tiket tidak ditemukan. Mohon periksa kembali tautan yang Anda terima atau hubungi panitia penyelenggara.')
-      const d = s.data(); if (prev.current === 'aktif' && d.status === 'terpakai') navigator.vibrate?.([100, 60, 100]); prev.current = d.status; setT(d); setErr('') },
+      const d = s.data(), n = Object.keys(d.usedDays || {}).length; if (prev.current !== null && n > prev.current) navigator.vibrate?.([100, 60, 100]); prev.current = n; setT(d); setErr('') },
     () => setErr('Tiket tidak dapat dimuat saat ini. Silakan muat ulang halaman atau coba beberapa saat lagi.')), [token])
 
   const kode = showCode(token)
   const waktu = sem.time ? `Pukul ${sem.time.replace(':', '.')}` : ''
   const peserta = t && [['Nama lengkap', t.participantName], ['Instansi', t.institution], ['Email', t.emailMasked], ['Nomor WhatsApp', t.waMasked], ['Nomor tiket', kode]].filter(r => r[1])
   const peta = normMaps(sem.mapsUrl), pt = peta ? coordsFromMaps(peta) : null
-  const acara = [['Hari/Tanggal', tgl(sem.date)], ['Waktu', waktu], ['Tempat', sem.location]].filter(r => r[1])
+  // Kegiatan 1 atau 2 hari; QR yang sama dipakai di semua hari, kehadiran dicatat per hari
+  const days = hariList(sem), multi = days.length > 1, today = hariAktif(days), usedToday = t ? usedOn(t, today, days) : null
+  const acara = [...(multi ? [['Hari ke-1', tgl(sem.date)], ['Hari ke-2', tgl(sem.date2)]] : [['Hari/Tanggal', tgl(sem.date)]]), ['Waktu', waktu], ['Tempat', sem.location]].filter(r => r[1])
 
   // Tiket lengkap (nama, data kegiatan, QR) sebagai satu gambar PNG
   const unduh = async () => {
@@ -38,25 +40,26 @@ export default function PublicTicket() {
     x.drawImage(q, (W - 600) / 2, y + 10, 600, 600); y += 660
     x.fillStyle = '#667085'; x.font = `500 24px ${F}`; x.textAlign = 'center'
     x.fillText('Tunjukkan kode QR ini kepada petugas registrasi.', W / 2, y + 20)
-    x.fillText('Dapat diwakilkan. Berlaku untuk satu kali registrasi.', W / 2, y + 56)
+    x.fillText(multi ? 'Dapat diwakilkan. Berlaku untuk kedua hari kegiatan.' : 'Dapat diwakilkan. Berlaku untuk satu kali registrasi.', W / 2, y + 56)
     const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = `tiket-${(t.participantName || kode).replace(/[^\w-]+/g, '_')}.png`; a.click() }
 
   return <div className="tk-wrap">
     {err && <div className="alert alert-danger m-3">{err}</div>}
     {!t && !err && <div className="tk" aria-busy="true" aria-label="Memuat tiket"><div className="tk-head"><Skel w="40%" h=".8rem" className="mb-2"/><Skel w="75%" h="1.6rem"/></div>
       <div className="tk-body"><Skel h="2.6rem" r="10px" className="mb-3"/><div className="text-center mb-3"><Skel w="240px" h="240px" r="12px"/></div><Skel w="90%" className="mb-2"/><Skel w="60%" className="mb-4"/><Skel h="1rem" className="mb-2"/><Skel h="1rem" className="mb-2"/><Skel h="1rem"/></div></div>}
-    {t && t.status === 'terpakai' && <div className="tk-banner" role="status" aria-live="polite"><i className="bi bi-check-circle-fill"/><div><b>Registrasi berhasil. Silakan masuk.</b>{t.usedAt && <small>Tercatat hadir pukul {jam(t.usedAt)}</small>}</div></div>}
+    {t && usedToday && <div className="tk-banner" role="status" aria-live="polite"><i className="bi bi-check-circle-fill"/><div><b>Registrasi berhasil. Silakan masuk.</b><small>{multi ? `Hari ke-${days.indexOf(today) + 1} · ` : ''}{usedToday.toDate ? `Tercatat hadir pukul ${jam(usedToday)}` : 'Tercatat hadir'}</small></div></div>}
     {t && <div className="tk">
       <div className="tk-head"><div className="tk-eyebrow">Tiket Masuk Peserta</div><h1>{sem.title || 'Seminar'}</h1></div>
       <div className="tk-body">
-        {t.status === 'aktif' && <div className="tk-status ok"><i className="bi bi-check-circle-fill"/> Tiket aktif dan siap digunakan</div>}
+        {t.status === 'aktif' && !usedToday && <div className="tk-status ok"><i className="bi bi-check-circle-fill"/> Tiket aktif dan siap digunakan</div>}
 
         {t.status === 'dicabut' && <div className="tk-status off"><i className="bi bi-slash-circle-fill"/> Tiket ini telah dinonaktifkan oleh panitia dan tidak dapat digunakan. Silakan menghubungi panitia penyelenggara.</div>}
 
-        <div className={`tk-qr ${t.status === 'terpakai' ? 'used' : ''}`}>{img ? <img src={img} alt="Kode QR tiket"/> : <Skel w="min(300px,100%)" h="300px" r="12px"/>}</div>
+        <div className={`tk-qr ${usedToday ? 'used' : ''}`}>{img ? <img src={img} alt="Kode QR tiket"/> : <Skel w="min(300px,100%)" h="300px" r="12px"/>}</div>
         <p className="tk-hint">Tunjukkan kode QR ini kepada petugas registrasi pada saat kedatangan. Jika QR tidak dapat dipindai, sebutkan <b>Nomor tiket</b> di bawah.</p>
-        {t.status === 'aktif' && <div className="tk-bright"><i className="bi bi-brightness-high-fill"/> Naikkan kecerahan layar agar QR mudah dipindai</div>}
+        {t.status === 'aktif' && !usedToday && <div className="tk-bright"><i className="bi bi-brightness-high-fill"/> Naikkan kecerahan layar agar QR mudah dipindai</div>}
         <div className="tk-nomor">Nomor tiket<div className="tk-code fs-3">{kode}</div></div>
+        {multi && <ul className="tk-days" aria-label="Status kehadiran per hari">{days.map(d => { const u = usedOn(t, d, days); return <li key={d} className={u ? 'on' : ''}><i className={`bi bi-${u ? 'check-circle-fill' : 'circle'}`}/><span>{hariLabel(days, d)}{d === today ? ' (hari ini)' : ''}</span><b>{u ? 'Sudah hadir' : 'Belum hadir'}</b></li> })}</ul>}
 
         <h2>Data peserta</h2>
         <dl className="tk-list">{peserta.map(([k, v]) => <div key={k}><dt>{k}</dt><dd className={k === 'Nomor tiket' ? 'tk-code' : ''}>{v}</dd></div>)}</dl>
@@ -71,7 +74,7 @@ export default function PublicTicket() {
 
         <details className="tk-fold"><summary>Ketentuan</summary>
         <ol className="tk-rules">
-          <li>Tiket ini hanya dapat digunakan satu kali.</li>
+          <li>{multi ? 'Tiket ini berlaku untuk kedua hari kegiatan dan dipindai satu kali setiap hari.' : 'Tiket ini hanya dapat digunakan satu kali.'}</li>
           <li>Apabila Anda berhalangan hadir, tiket ini dapat diwakilkan kepada orang lain. Perwakilan cukup menunjukkan kode QR ini dan menyebutkan namanya kepada petugas.</li>
           <li>Bagikan tautan atau kode QR ini hanya kepada orang yang Anda tunjuk sebagai perwakilan.</li>
           <li>Simpan tiket ini atau unduh sebagai gambar agar tetap dapat ditunjukkan apabila koneksi internet tidak tersedia.</li>

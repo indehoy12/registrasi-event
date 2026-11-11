@@ -1,12 +1,14 @@
 import { useDialog, Badge, SkelRows, MapsWarn } from '../ui'
 import { useState } from 'react'; import QRCode from 'qrcode'; import JSZip from 'jszip'
 import { addDoc, collection, doc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore'
-import { useColState, useSeminar, wait, sendTicketWA, maskWa, maskEmail, showCode } from '../hooks'; import { auth, db } from '../firebase'
+import { useColState, useSeminar, wait, sendTicketWA, sendTicketEmail, validEmail, maskWa, maskEmail, showCode, useJagaProses } from '../hooks'; import { auth, db } from '../firebase'
 const newToken = () => { const b = crypto.getRandomValues(new Uint8Array(24)); return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') }
 const save = (href, name) => { const a = document.createElement('a'); a.href = href; a.download = name; a.click() }
 export default function Tickets() {
   const ask = useDialog()
-  const [ps, lp] = useColState('participants'), [ts, lt] = useColState('tickets'), loading = lp || lt, { loaded: sl, mapsOk } = useSeminar(), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [auto, setAuto] = useState(true)
+  const [ps, lp] = useColState('participants'), [ts, lt] = useColState('tickets'), loading = lp || lt, { loaded: sl, mapsOk } = useSeminar(), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [auto, setAuto] = useState(true), [autoMail, setAutoMail] = useState(true)
+  useJagaProses(busy)
+  const rincian = (arr) => arr.length ? ` Perhatian: ${arr.slice(0, 5).join('; ')}${arr.length > 5 ? `; dan ${arr.length - 5} lainnya` : ''}.` : ''
   const by = Object.fromEntries(ts.filter(t => t.status !== 'dicabut').map(t => [t.participantId, t]))
   const todo = ps.filter(p => !by[p.id])
   const gen = async (list) => { setBusy(true); setMsg('')
@@ -15,12 +17,18 @@ export default function Tickets() {
         made.slice(i, i + 400).forEach(({ p, id }) => b.set(doc(db, 'tickets', id), { participantId: p.id, participantName: p.name, institution: p.institution || '', emailMasked: maskEmail(p.email), waMasked: maskWa(p.whatsapp), status: 'aktif', createdAt: serverTimestamp(), sentAt: null })); await b.commit() }
       await addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'buat tiket', count: list.length })
       let info = `${list.length} tiket dibuat.`; setMsg(info)
-      if (auto && mapsOk) { const q = made.filter(x => x.p.whatsapp); let ok = 0
+      if (auto && mapsOk) { const q = made.filter(x => x.p.whatsapp), gagal = []; let ok = 0
         for (let i = 0; i < q.length; i++) { setMsg(`${info} Mengirim WhatsApp ${i + 1} dari ${q.length}…`)
-          try { await sendTicketWA(q[i].id); ok++ } catch { /* yang gagal tetap berstatus Belum di menu Distribusi */ }
+          try { const j = await sendTicketWA(q[i].id); ok++; if (j.warn) gagal.push(`${q[i].p.name} (terkirim, status tidak tersimpan; jangan kirim ulang)`) } catch (e) { gagal.push(`${q[i].p.name} (${e.message})`) }
           if (i < q.length - 1) await wait(3000 + Math.random() * 3000) }
         await addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'kirim WhatsApp otomatis', sent: ok, failed: q.length - ok })
-        info += ` WhatsApp: ${ok} terkirim, ${q.length - ok} gagal, ${list.length - q.length} tanpa nomor. Yang belum terkirim bisa diulang di menu Distribusi.` }
+        info += ` WhatsApp: ${ok} terkirim, ${q.length - ok} gagal, ${list.length - q.length} tanpa nomor.${rincian(gagal)} Yang belum terkirim bisa diulang di menu Distribusi.` }
+      if (autoMail && mapsOk) { const qe = made.filter(x => validEmail(x.p.email || '')), gagal = []; let ok = 0
+        for (let i = 0; i < qe.length; i++) { setMsg(`${info} Mengirim email ${i + 1} dari ${qe.length}…`)
+          try { const j = await sendTicketEmail(qe[i].id); ok++; if (j.warn) gagal.push(`${qe[i].p.name} (terkirim, status tidak tersimpan; jangan kirim ulang)`) } catch (e) { gagal.push(`${qe[i].p.name} (${e.message})`) }
+          if (i < qe.length - 1) await wait(1500 + Math.random() * 1000) }
+        await addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'kirim email otomatis', sent: ok, failed: qe.length - ok })
+        info += ` Email: ${ok} terkirim, ${qe.length - ok} gagal, ${list.length - qe.length} tanpa email valid.${rincian(gagal)} Yang belum terkirim bisa diulang di menu Distribusi.` }
       setMsg(info) } catch (e) { setMsg('Gagal membuat tiket: ' + e.message) } setBusy(false) }
   const png = async (t, p) => save(await QRCode.toDataURL(t.id, { width: 700, margin: 2 }), `tiket-${(p?.name || t.id).replace(/[^\w-]+/g, '_')}.png`)
   const zip = async () => { setBusy(true); const z = new JSZip()
@@ -31,6 +39,7 @@ export default function Tickets() {
     await addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'cabut tiket', participant: t.participantName }) }
   return <><div className="d-flex gap-2 mb-3 flex-wrap"><h1 className="h4 me-auto">Tiket QR</h1>
     <label className="form-check d-flex align-items-center gap-2 small mb-0"><input type="checkbox" className="form-check-input mt-0" checked={auto && mapsOk} disabled={!mapsOk} onChange={e => setAuto(e.target.checked)}/>Kirim otomatis via WhatsApp</label>
+    <label className="form-check d-flex align-items-center gap-2 small mb-0"><input type="checkbox" className="form-check-input mt-0" checked={autoMail && mapsOk} disabled={!mapsOk} onChange={e => setAutoMail(e.target.checked)}/>dan email</label>
     <button className="btn btn-outline-primary btn-sm" disabled={busy || !ts.length} onClick={zip}>Unduh semua PNG (ZIP)</button>
     <button className={'btn btn-primary btn-sm' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy || !todo.length} onClick={() => gen(todo)}>{`Buat ${todo.length} tiket`}</button></div>
     <MapsWarn loaded={sl} mapsOk={mapsOk}/>

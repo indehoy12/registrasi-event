@@ -50,11 +50,10 @@ export function ResultModal({ ok, warn, title, text, onClose }) {
 }
 
 // Popup check-in berhasil: centang hijau, data peserta, tombol "Diwakilkan?" untuk menambah nama perwakilan
-export function CheckinModal({ name, institution, code, onRep, onUndo, onClose }) {
-  const [edit, setEdit] = useState(false), [rep, setRep] = useState(''), [busy, setBusy] = useState(false), [saved, setSaved] = useState(''), [err, setErr] = useState(''), [undoing, setUndoing] = useState(false)
+export function CheckinModal({ name, institution, code, hari, onRep, onUndo, onClose }) {
+  const [edit, setEdit] = useState(false), [rep, setRep] = useState(''), [busy, setBusy] = useState(false), [saved, setSaved] = useState(''), [err, setErr] = useState(''), [undoing, setUndoing] = useState(false), [conf, setConf] = useState(false)
+  // Popup TIDAK menutup sendiri: petugas punya waktu untuk memilih peserta/perwakilan atau membatalkan, lalu menekan OK.
   useEffect(() => { navigator.vibrate?.(80); beep('ok') }, [])
-  // Tertutup otomatis, kecuali petugas sedang mengetik nama perwakilan
-  useEffect(() => { if (edit && !saved) return; const t = setTimeout(onClose, saved ? 2000 : 6000); return () => clearTimeout(t) }, [edit, saved])
   const undo = async () => {
     if (undoing) return; setUndoing(true); setErr('')
     try { await onUndo() } catch { setErr('Gagal membatalkan. Periksa koneksi atau hubungi admin.'); setUndoing(false) }
@@ -65,10 +64,10 @@ export function CheckinModal({ name, institution, code, onRep, onUndo, onClose }
     try { await onRep(n); setSaved(n); setEdit(false) } catch { setErr('Gagal menyimpan. Periksa koneksi lalu coba lagi.') }
     setBusy(false)
   }
-  return <div className="mdl-back" onMouseDown={e => e.target === e.currentTarget && !edit && onClose()}>
+  return <div className="mdl-back">
     <div className="mdl text-center" role="alertdialog" aria-modal="true" aria-labelledby="ck-t">
       <svg className="ai ok" viewBox="0 0 52 52" aria-hidden="true"><circle className="ai-c" cx="26" cy="26" r="24" fill="none" pathLength="1"/><path className="ai-m" fill="none" d="M15 27l8 8 15-17" pathLength="1"/></svg>
-      <h2 id="ck-t" className="h5 mb-1 text-success">Check-in berhasil</h2>
+      <h2 id="ck-t" className="h5 mb-1 text-success">Check-in berhasil</h2>{hari && <div className="small text-muted mb-1">{hari}</div>}
       <div className="fw-bold fs-4 lh-sm">{name}</div>
       <div className="text-muted">{institution || 'Tanpa instansi'}</div>
       <div className="code-chip my-2">No. {code}</div>
@@ -84,10 +83,13 @@ export function CheckinModal({ name, institution, code, onRep, onUndo, onClose }
       {!edit && <div className="d-grid gap-2 mt-3">
         <button className="btn btn-success btn-lg" autoFocus onClick={onClose}>{saved ? 'Selesai' : 'OK, lanjut scan'}</button>
         {!saved && <button className="btn btn-outline-secondary" onClick={() => setEdit(true)}><i className="bi bi-person-badge"/> Diwakilkan?</button>}
-        <button className={'btn btn-link text-danger btn-sm' + (undoing ? ' is-busy' : '')} aria-busy={undoing} disabled={undoing} onClick={undo}><i className="bi bi-arrow-counterclockwise"/> Salah scan? Batalkan</button>
+        {!conf ? <button className="btn btn-link text-danger btn-sm" onClick={() => setConf(true)}><i className="bi bi-arrow-counterclockwise"/> Salah scan? Batalkan</button>
+          : <div className="ck-conf"><div className="fw-semibold mb-2">Batalkan check-in {name}?</div>
+              <div className="d-flex gap-2"><button className={'btn btn-danger flex-fill' + (undoing ? ' is-busy' : '')} aria-busy={undoing} disabled={undoing} onClick={undo}>Ya, batalkan</button>
+                <button className="btn btn-outline-secondary" disabled={undoing} onClick={() => setConf(false)}>Tidak</button></div></div>}
         {err && <div className="text-danger small">{err}</div>}
+        <div className="small text-muted">Popup tertutup setelah Anda menekan OK. Data masih bisa diubah atau dibatalkan dari daftar Check-in terakhir selama 10 menit.</div>
       </div>}
-      {!edit && !saved && <div className="ck-bar" aria-hidden="true"/>}
     </div></div>
 }
 

@@ -14,19 +14,31 @@ service cloud.firestore {
     match /participants/{id} { allow read, write: if admin(); }
     match /seminar/{id} { allow get: if true; allow list: if staff(); allow write: if admin(); }
     // get dibuka agar peserta bisa membuka tautan tiketnya; kode tiket acak dan tidak bisa ditebak
+    // Selisih peta usedDays (hari -> waktu check-in) antara data baru dan data lama
+    function dd() { return request.resource.data.get('usedDays', {}).diff(resource.data.get('usedDays', {})); }
     match /tickets/{id} {
       allow get: if true;
       allow list: if staff(); // petugas perlu mencari nomor tiket secara manual
       allow create: if admin();
-      allow update: if admin() || (staff() && resource.data.status == 'aktif' && request.resource.data.status == 'terpakai'
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','usedAt','usedBy']))
-        // petugas boleh membatalkan check-in miliknya sendiri dalam 2 menit (salah scan)
-        || (staff() && resource.data.status == 'terpakai' && resource.data.usedBy == request.auth.token.email && request.time < resource.data.usedAt + duration.value(2, 'm')
-        && request.resource.data.status == 'aktif' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','usedAt','usedBy']));
+      // petugas: menambah TEPAT SATU hari check-in, atau membatalkan check-in miliknya sendiri dalam 10 menit (salah scan)
+      allow update: if admin() || (staff() && resource.data.status != 'dicabut' && request.resource.data.status == 'aktif'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','usedDays','usedAt','usedBy'])
+        && dd().changedKeys().size() == 0
+        && ((dd().addedKeys().size() == 1 && dd().removedKeys().size() == 0)
+          || (dd().removedKeys().size() == 1 && dd().addedKeys().size() == 0
+              && resource.data.usedBy == request.auth.token.email && request.time < resource.data.usedAt + duration.value(10, 'm'))));
     }
-    match /checkins/{id} { allow read: if staff(); allow create: if staff() && request.resource.data.officerEmail == request.auth.token.email; allow update: if admin() || (staff() && resource.data.officerEmail == request.auth.token.email && resource.data.isRepresentative == false
-        && request.resource.data.isRepresentative == true && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRepresentative','representativeName']));
-      allow delete: if admin() || (staff() && resource.data.officerEmail == request.auth.token.email && request.time < resource.data.checkedInAt + duration.value(2, 'm')); }
+    function tk(id) { return /databases/$(database)/documents/tickets/$(id); }
+    // Dokumen check-in hanya sah bila dibuat bersamaan (satu transaksi/batch) dengan penambahan hari tersebut pada tiketnya.
+    // Mencegah catatan kehadiran palsu, hari ganda, atau nama peserta yang tidak cocok dengan tiket.
+    function ckSah() { let d = request.resource.data; return d.ticketId is string && d.day is string && exists(tk(d.ticketId))
+      && d.participantId == get(tk(d.ticketId)).data.participantId
+      && !(d.day in get(tk(d.ticketId)).data.get('usedDays', {}))
+      && (d.day in getAfter(tk(d.ticketId)).data.usedDays); }
+    match /checkins/{id} { allow read: if staff(); allow create: if staff() && request.resource.data.officerEmail == request.auth.token.email && ckSah(); // petugas boleh mengubah nama perwakilan pada check-in miliknya sendiri selama 10 menit
+      allow update: if admin() || (staff() && resource.data.officerEmail == request.auth.token.email && request.time < resource.data.checkedInAt + duration.value(10, 'm')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRepresentative','representativeName']));
+      allow delete: if admin() || (staff() && resource.data.officerEmail == request.auth.token.email && request.time < resource.data.checkedInAt + duration.value(10, 'm')); }
     match /auditLogs/{id} { allow read: if superadmin(); allow create: if staff(); }
   }
 }

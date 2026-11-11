@@ -115,10 +115,10 @@ html{font-size:clamp(14px,6px + .35vw + .35vh,16px)}
 .table-responsive{max-height:max(260px,calc(100dvh - 15.5rem));overflow:auto}
 .table thead th{position:sticky;top:0;z-index:1}
 .fgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.9rem 1rem;max-width:900px}
-.fgrid .s6{grid-column:span 6}.fgrid .s2{grid-column:span 2}
+.fgrid .s6{grid-column:span 6}.fgrid .s4{grid-column:span 4}.fgrid .s2{grid-column:span 2}
 .scan{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:1.25rem;align-items:start;max-width:960px}
 #reader{max-width:none}
-@media (max-width:760px){.fgrid .s2{grid-column:span 6}.scan{grid-template-columns:1fr}}
+@media (max-width:760px){.fgrid .s2,.fgrid .s4{grid-column:span 6}.scan{grid-template-columns:1fr}}
 @media (max-height:640px){.menu a{font-size:.88rem}.brand-mark{width:34px;height:34px;font-size:1.05rem}.stat{padding:.75rem 1rem}.pct{font-size:2rem;margin:.2rem 0 .5rem}}
 @media (max-width:991.98px){
   .shell{height:auto;overflow:visible;display:block}.main{height:auto}
@@ -210,3 +210,9 @@ div>.skel,.tk-body>.skel,.panel>.skel{display:block}
 @media (prefers-reduced-motion:reduce){.btn.is-busy::after,.map-pick.leaflet-container{animation:none}}
 /* peta mini di tiket peserta */
 .map-prev{display:block;width:100%;height:210px;border:1px solid var(--line);border-radius:12px;margin:.25rem 0 .6rem}
+/* status kehadiran per hari di tiket peserta */
+.tk-days{list-style:none;margin:.75rem 0 0;padding:0;display:grid;gap:.4rem}
+.tk-days li{display:flex;align-items:center;gap:.6rem;border:1.5px solid var(--line);border-radius:12px;padding:.55rem .8rem;color:#475467}
+.tk-days li>span{flex:1}.tk-days li b{font-size:.85rem}
+.tk-days li.on{border-color:#12b76a;background:#ecfdf3;color:#067647}
+.ck-conf{background:#fef3f2;border:1px solid #fecdca;border-radius:12px;padding:.75rem;text-align:left}
