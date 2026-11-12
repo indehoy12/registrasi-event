@@ -47,7 +47,7 @@ export default function PublicTicket() {
     {err && <div className="alert alert-danger m-3">{err}</div>}
     {!t && !err && <div className="tk" aria-busy="true" aria-label="Memuat tiket"><div className="tk-head"><Skel w="40%" h=".8rem" className="mb-2"/><Skel w="75%" h="1.6rem"/></div>
       <div className="tk-body"><Skel h="2.6rem" r="10px" className="mb-3"/><div className="text-center mb-3"><Skel w="240px" h="240px" r="12px"/></div><Skel w="90%" className="mb-2"/><Skel w="60%" className="mb-4"/><Skel h="1rem" className="mb-2"/><Skel h="1rem" className="mb-2"/><Skel h="1rem"/></div></div>}
-    {t && usedToday && <div className="tk-banner" role="status" aria-live="polite"><i className="bi bi-check-circle-fill"/><div><b>Registrasi berhasil. Silakan masuk.</b><small>{multi ? `Hari ke-${days.indexOf(today) + 1} · ` : ''}{usedToday.toDate ? `Tercatat hadir pukul ${jam(usedToday)}` : 'Tercatat hadir'}</small></div></div>}
+    {t && usedToday && t.status !== 'dicabut' && <div className="tk-banner" role="status" aria-live="polite"><i className="bi bi-check-circle-fill"/><div><b>Registrasi berhasil. Silakan masuk.</b><small>{multi ? `Hari ke-${days.indexOf(today) + 1} · ` : ''}{usedToday.toDate ? `Tercatat hadir pukul ${jam(usedToday)}` : 'Tercatat hadir'}</small></div></div>}
     {t && <div className="tk">
       <div className="tk-head"><div className="tk-eyebrow">Tiket Masuk Peserta</div><h1>{sem.title || 'Seminar'}</h1></div>
       <div className="tk-body">

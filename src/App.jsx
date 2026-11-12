@@ -30,7 +30,7 @@ export default function App() {
   useEffect(() => onAuthStateChanged(auth, async (u) => {
     if (!u) { setUser(null); setRole(null); return }
     const s = await getDoc(doc(db, 'users', u.uid))
-    setRole(s.exists() && s.data().active !== false ? s.data().role : null); setUser(u)
+    setRole(s.exists() && s.data().active === true ? s.data().role : null); setUser(u)
   }), [])
   if (user === undefined) return <div className="p-4" style={{ maxWidth: 720, margin: '0 auto' }} aria-busy="true" aria-label="Memuat"><Skel w="40%" h="1.6rem" className="mb-3"/><Skel h="5rem" r="14px" className="mb-3"/><Skel h="12rem" r="14px"/></div>
   if (!user || !role) return <Routes><Route path="/tiket/:token" element={<PublicTicket/>}/><Route path="/admin/login" element={<Login noAccess={!!user && !role}/>}/><Route path="*" element={<Navigate to="/admin/login"/>}/></Routes>

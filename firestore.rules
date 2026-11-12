@@ -39,6 +39,6 @@ service cloud.firestore {
       allow update: if admin() || (staff() && resource.data.officerEmail == request.auth.token.email && request.time < resource.data.checkedInAt + duration.value(10, 'm')
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRepresentative','representativeName']));
       allow delete: if admin() || (staff() && resource.data.officerEmail == request.auth.token.email && request.time < resource.data.checkedInAt + duration.value(10, 'm')); }
-    match /auditLogs/{id} { allow read: if superadmin(); allow create: if staff(); }
+    match /auditLogs/{id} { allow read: if superadmin(); allow create: if staff() && request.resource.data.actor == request.auth.token.email; }
   }
 }
