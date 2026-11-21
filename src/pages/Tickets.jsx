@@ -7,7 +7,7 @@ const save = (href, name) => { const a = document.createElement('a'); a.href = h
 // Pencarian langsung sesuai kolom tabel ini (nama, nomor tiket, status tiket); nomor tiket ikut dicari mulai 3 karakter (atau bila ada angka)
 // agar mengetik satu-dua huruf nama tidak memunculkan peserta yang namanya tidak cocok hanya karena nomor tiketnya.
 const STATUS = { aktif: 'Aktif', terpakai: 'Terpakai', dicabut: 'Dicabut' }
-const cocok = (p, t, q) => cariCocok(q, `${p.name || ''} ${t ? STATUS[t.status] || t.status : 'Belum dibuat'}`, t ? showCode(t.id) : '')
+const cocok = (p, t, q) => cariCocok(q, `${p.name || ''} ${p.institution || ''} ${p.bidang || ''} ${t ? STATUS[t.status] || t.status : 'Belum dibuat'}`, t ? showCode(t.id) : '')
 
 // Popup QR: tampil langsung saat tombol "Lihat QR" ditekan; Esc atau klik di luar kotak untuk menutup
 function QrModal({ t, onClose, onPng }) {
@@ -70,7 +70,7 @@ export default function Tickets() {
     <button className={'btn btn-primary btn-sm' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy || !todo.length} onClick={() => gen(todo)}>{`Buat ${todo.length} tiket`}</button></div>
     <MapsWarn loaded={sl} mapsOk={mapsOk}/>
     {msg && <div className="alert alert-info">{msg}</div>}
-    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 360 }} type="search" autoComplete="off" aria-label="Cari peserta atau nomor tiket" placeholder="Cari nama" value={q} onChange={e => setQ(e.target.value)}/>
+    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} type="search" autoComplete="off" aria-label="Cari peserta atau nomor tiket" placeholder="Cari nama, perusahaan, nomor tiket, atau status" value={q} onChange={e => setQ(e.target.value)}/>
       {!loading && q.trim() && <span className="small text-muted" role="status" aria-live="polite">{tampil.length} dari {ps.length} peserta</span>}</div>
     <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Peserta</th><th>No. tiket</th><th>Status tiket</th><th/></tr></thead><tbody>
       {loading && <SkelRows rows={6} cols={4}/>}

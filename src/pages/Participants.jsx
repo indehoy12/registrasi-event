@@ -50,7 +50,7 @@ export default function Participants() {
           {fe[k] && <div className="invalid-feedback">{fe[k]}</div>}</div>)}
       {multi && <div className="col-md-auto"><select className="form-select" aria-label="Hari kehadiran" value={f.hari || ''} onChange={e => setF({ ...f, hari: e.target.value })}><option value="">Kedua hari</option><option value="1">Hanya hari ke-1</option><option value="2">Hanya hari ke-2</option></select></div>}
       <div className="col-auto d-flex gap-2"><button className="btn btn-primary">{edit ? 'Simpan perubahan' : 'Tambah peserta'}</button>{edit && <button type="button" className="btn btn-outline-secondary" onClick={() => { setEdit(null); setF(empty); setFe({}) }}>Batal</button>}</div></form></div>
-    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 360 }} aria-label="Cari peserta" placeholder="Cari nama" type="search" autoComplete="off" value={q} onChange={e=>setQ(e.target.value)}/>
+    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} aria-label="Cari peserta" placeholder="Cari nama, email, perusahaan, bidang, atau nomor WhatsApp" type="search" autoComplete="off" value={q} onChange={e=>setQ(e.target.value)}/>
       {!loading && q.trim() && <span className="small text-muted" role="status" aria-live="polite">{list.length} dari {rows.length} peserta</span>}</div>
     <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Nama</th><th>Email</th><th>WhatsApp</th><th>Nama perusahaan</th><th>Bidang perusahaan</th>{multi && <th>Hari</th>}<th>Status</th><th/></tr></thead><tbody>
       {loading && <SkelRows rows={6} cols={multi ? 8 : 7}/>}
