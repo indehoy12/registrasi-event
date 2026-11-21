@@ -1,5 +1,5 @@
 import { useDialog, Badge, Skel, SkelRows } from '../ui'
-import { useState } from 'react'; import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'; import { Link } from 'react-router-dom'
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore'
 import { auth, db } from '../firebase'; import { useColState, useSeminar, tgl, waNumber, validWa, validEmail, maskWa, maskEmail, hariList, hariTeks, normHari, cariCocok } from '../hooks'
 const empty = { name:'', email:'', whatsapp:'', institution:'', bidang:'', hari:'', status:'terdaftar' }
@@ -15,21 +15,37 @@ async function syncTiket(id, d, lama) {
     b.update(t.ref, x) })
   await b.commit()
 }
+// Satu kolom form: label di atas, ikon, contoh isian, dan petunjuk singkat
+const Field = ({ id, label, req, icon, hint, error, children }) => <div>
+  <label className="form-label pf-label" htmlFor={id}>{label}{req ? <span className="pf-req" title="Wajib diisi"> *</span> : <span className="pf-opt"> (opsional)</span>}</label>
+  <div className={'pf-input' + (error ? ' has-err' : '')}><i className={'bi bi-' + icon} aria-hidden="true"/>{children}</div>
+  {error ? <div className="pf-err" role="alert"><i className="bi bi-exclamation-circle"/> {error}</div> : hint && <div className="pf-hint">{hint}</div>}</div>
 export default function Participants() {
   const ask = useDialog(), { sem } = useSeminar(), days = hariList(sem), multi = days.length > 1
   const [rows, loading] = useColState('participants', 'createdAt'), [f, setF] = useState(empty), [q, setQ] = useState(''), [edit, setEdit] = useState(null), [err, setErr] = useState(''), [fe, setFe] = useState({})
-  const save = async (e) => { e.preventDefault(); setErr('')
+  const [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [ok, setOk] = useState(''), nameRef = useRef(null)
+  const bukaTambah = () => { setEdit(null); setErr(''); setOk(''); setFe({}); setF({ ...empty, hari: multi ? '?' : '' }); setOpen(true) }   // hari '?' = belum memilih batch
+  const bukaUbah = (r) => { setErr(''); setOk(''); setFe({}); setEdit(r.id); setF({ name: r.name, email: r.email || '', whatsapp: r.waAsli || r.whatsapp || '', institution: r.institution || '', bidang: r.bidang || '', hari: normHari(r.hari), status: r.status || 'terdaftar' }); setOpen(true) }
+  const tutup = () => { if (busy) return; setOpen(false); setEdit(null); setF(empty); setFe({}); setErr(''); setOk('') }
+  useEffect(() => { if (!open) return; const k = (e) => e.key === 'Escape' && tutup(); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k) })
+  const ubah = (k, v) => { setF(x => ({ ...x, [k]: v })); if (fe[k]) setFe(x => ({ ...x, [k]: '' })); if (ok) setOk('') }
+  // lagi = true: setelah tersimpan, form dikosongkan dan tetap terbuka untuk peserta berikutnya (batch tetap sama)
+  const save = async (e, lagi = false) => { e?.preventDefault(); if (busy) return; setErr('')
     const d = { ...f, name: f.name.trim(), email: f.email.trim(), institution: f.institution.trim(), bidang: (f.bidang || '').trim(), whatsapp: waNumber(f.whatsapp), waAsli: f.whatsapp.trim(), hari: normHari(f.hari) }, er = {}
     if (!d.name) er.name = 'Nama wajib diisi.'
+    if (multi && f.hari === '?') er.hari = 'Pilih batch peserta.'
     if (!d.whatsapp) er.whatsapp = 'Nomor WhatsApp wajib diisi.'
     else if (!validWa(d.whatsapp)) er.whatsapp = 'Nomor tidak valid. Harus nomor HP berawalan 08 atau 628, contoh: 08123456789 atau 628123456789.'
     else if (rows.some(r => r.id !== edit && waNumber(r.whatsapp) === d.whatsapp)) er.whatsapp = 'Nomor WhatsApp ini sudah terdaftar.'
     if (d.email && !validEmail(d.email)) er.email = 'Format email tidak valid (contoh: nama@gmail.com), atau kosongkan.'
-    setFe(er); if (Object.keys(er).length) return
+    setFe(er); if (Object.keys(er).length) { document.getElementById('pf-' + Object.keys(er)[0])?.focus(); return }
+    setBusy(true)
     try { if (edit) { const lama = rows.find(r => r.id === edit); await updateDoc(doc(db,'participants',edit), d)
-        try { await syncTiket(edit, d, lama) } catch (ex2) { setErr('Data peserta tersimpan, tetapi tiketnya gagal diperbarui (' + (ex2.code || ex2.message) + '). Simpan ulang data peserta ini untuk mencoba lagi.') } }
+        try { await syncTiket(edit, d, lama) } catch (ex2) { setErr('Data peserta tersimpan, tetapi tiketnya gagal diperbarui (' + (ex2.code || ex2.message) + '). Simpan ulang data peserta ini untuk mencoba lagi.'); setBusy(false); return } }
       else await addDoc(collection(db,'participants'), { ...d, createdAt: serverTimestamp() })
-      setF(empty); setEdit(null) } catch (ex) { setErr(ex.code === 'permission-denied' ? 'Ditolak oleh aturan Firestore (permission-denied). Periksa dokumen akun di koleksi users (role dan active) dan pastikan firestore.rules sudah di-Publish.' : 'Gagal menyimpan: ' + (ex.code || '') + ' ' + ex.message) } }
+      if (lagi && !edit) { setOk(d.name + ' berhasil ditambahkan. Silakan isi peserta berikutnya.'); setF({ ...empty, hari: multi ? f.hari : '' }); setFe({}); setBusy(false); setTimeout(() => nameRef.current?.focus(), 0); return }
+      setBusy(false); setOpen(false); setF(empty); setEdit(null); setOk('')
+    } catch (ex) { setBusy(false); setErr(ex.code === 'permission-denied' ? 'Ditolak oleh aturan Firestore (permission-denied). Periksa dokumen akun di koleksi users (role dan active) dan pastikan firestore.rules sudah di-Publish.' : 'Gagal menyimpan: ' + (ex.code || '') + ' ' + ex.message) } }
   // Hapus peserta sekaligus mencabut tiketnya (satu batch), agar tidak ada tiket aktif tanpa pemilik
   const hapus = async (r) => {
     if (!await ask({ title:'Hapus peserta?', text:`${r.name} akan dihapus dari daftar dan tiketnya otomatis dicabut. Riwayat check-in yang sudah ada tetap tersimpan.`, ok:'Hapus', danger:true })) return
@@ -40,22 +56,49 @@ export default function Participants() {
     } catch (ex) { setErr('Gagal menghapus peserta: ' + (ex.code || '') + ' ' + ex.message) } }
   const exp = async () => { setErr(''); try { const { unduhPeserta } = await import('../excel'); await unduhPeserta({ sem, days, ps: rows.map(r => ({ ...r, whatsapp: r.waAsli || r.whatsapp })), hariTeks, tgl }) } catch (ex) { setErr('Gagal membuat file Excel: ' + (ex.message || ex)) } }
   const list = rows.filter(r => cariCocok(q.trim(), [r.name, r.email, r.whatsapp, r.waAsli, r.institution, r.bidang, multi ? hariTeks(r, days) : '', r.status || 'terdaftar'].join(' ')))
+  const inp = (k, p, extra = {}) => <input id={'pf-' + k} className={'form-control' + (fe[k] ? ' is-invalid' : '')} placeholder={p} value={f[k] || ''} autoComplete="off" disabled={busy} onChange={e => ubah(k, e.target.value)} {...extra}/>
   return <><div className="d-flex gap-2 mb-3 flex-wrap"><h1 className="h4 me-auto">Peserta ({loading ? <Skel w="2rem" h="1rem" className="align-middle"/> : rows.length})</h1>
-    <Link className="btn btn-outline-primary btn-sm" to="/admin/participants/import">Import Excel</Link>
-    <button className="btn btn-outline-secondary btn-sm" disabled={loading} onClick={exp}>Export Excel</button></div>
-    {err && <div className="alert alert-danger">{err}</div>}
-    <div className="panel"><form className="row g-2" onSubmit={save}>
-      {[['name','Nama lengkap *'],['whatsapp','WhatsApp * (08… atau 628…)'],['email','Email (opsional)'],['institution','Nama perusahaan (opsional)'],['bidang','Bidang perusahaan (opsional)']].map(([k,p]) =>
-        <div className="col-md" key={k}><input className={'form-control' + (fe[k] ? ' is-invalid' : '')} placeholder={p} value={f[k]} type={k==='whatsapp' ? 'tel' : 'text'} inputMode={k==='whatsapp' ? 'numeric' : undefined} onChange={e=>{setF({...f,[k]:e.target.value}); if (fe[k]) setFe({...fe,[k]:''})}}/>
-          {fe[k] && <div className="invalid-feedback">{fe[k]}</div>}</div>)}
-      {multi && <div className="col-md-auto"><select className="form-select" aria-label="Hari kehadiran" value={f.hari || ''} onChange={e => setF({ ...f, hari: e.target.value })}><option value="">Kedua hari</option><option value="1">Hanya hari ke-1</option><option value="2">Hanya hari ke-2</option></select></div>}
-      <div className="col-auto d-flex gap-2"><button className="btn btn-primary">{edit ? 'Simpan perubahan' : 'Tambah peserta'}</button>{edit && <button type="button" className="btn btn-outline-secondary" onClick={() => { setEdit(null); setF(empty); setFe({}) }}>Batal</button>}</div></form></div>
+    <button className="btn btn-primary btn-sm" onClick={bukaTambah}><i className="bi bi-plus-lg"/> Tambah peserta</button>
+    <Link className="btn btn-outline-primary btn-sm" to="/admin/participants/import"><i className="bi bi-file-earmark-arrow-up"/> Import Excel</Link>
+    <button className="btn btn-outline-secondary btn-sm" disabled={loading} onClick={exp}><i className="bi bi-download"/> Export Excel</button></div>
+    {err && !open && <div className="alert alert-danger">{err}</div>}
     <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} aria-label="Cari peserta" placeholder="Cari nama, email, perusahaan, bidang, atau nomor WhatsApp" type="search" autoComplete="off" value={q} onChange={e=>setQ(e.target.value)}/>
       {!loading && q.trim() && <span className="small text-muted" role="status" aria-live="polite">{list.length} dari {rows.length} peserta</span>}</div>
     <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Nama</th><th>Email</th><th>WhatsApp</th><th>Nama perusahaan</th><th>Bidang perusahaan</th>{multi && <th>Hari</th>}<th>Status</th><th/></tr></thead><tbody>
       {loading && <SkelRows rows={6} cols={multi ? 8 : 7}/>}
       {!loading && list.map(r => <tr key={r.id}><td>{r.name}</td><td>{r.email}</td><td>{r.whatsapp}</td><td>{r.institution}</td><td>{r.bidang}</td>{multi && <td>{hariTeks(r, days)}</td>}<td><Badge s={r.status}/></td>
-        <td className="text-end"><button className="btn btn-link btn-sm" onClick={()=>{setEdit(r.id);setFe({});setF({name:r.name,email:r.email||'',whatsapp:r.waAsli||r.whatsapp||'',institution:r.institution||'',bidang:r.bidang||'',hari:normHari(r.hari),status:r.status||'terdaftar'})}}>Ubah</button>
-        <button className="btn btn-link btn-sm text-danger" onClick={() => hapus(r)}>Hapus</button></td></tr>)}
-      {!loading && !list.length && <tr><td colSpan={multi ? 8 : 7} className="text-center text-muted py-4">{rows.length ? 'Tidak ada peserta yang cocok.' : 'Belum ada peserta. Tambahkan manual atau import Excel.'}</td></tr>}</tbody></table></div></>
+        <td className="text-end text-nowrap"><button className="btn btn-link btn-sm" onClick={() => bukaUbah(r)}><i className="bi bi-pencil-square"/> Ubah</button>
+        <button className="btn btn-link btn-sm text-danger" onClick={() => hapus(r)}><i className="bi bi-trash3"/> Hapus</button></td></tr>)}
+      {!loading && !list.length && <tr><td colSpan={multi ? 8 : 7} className="text-center text-muted py-4">{rows.length ? 'Tidak ada peserta yang cocok.' : 'Belum ada peserta. Tambahkan manual atau import Excel.'}</td></tr>}</tbody></table></div>
+    {open && <div className="mdl-back" onMouseDown={e => e.target === e.currentTarget && tutup()}>
+      <form className="mdl mdl-form" role="dialog" aria-modal="true" aria-labelledby="pf-t" onSubmit={save} noValidate>
+        <div className="pf-head"><div className="pf-ic"><i className={'bi bi-' + (edit ? 'pencil-square' : 'person-plus')}/></div>
+          <div className="me-auto"><h2 id="pf-t" className="h5 mb-0">{edit ? 'Ubah data peserta' : 'Tambah peserta'}</h2>
+            <div className="small text-muted">{edit ? 'Perubahan ikut diterapkan ke tiket peserta.' : 'Isi data di bawah. Tanda * wajib diisi.'}</div></div>
+          <button type="button" className="btn-close" aria-label="Tutup" onClick={tutup}/></div>
+        <div className="pf-body">
+        {err && <div className="alert alert-danger py-2 small mb-3" role="alert">{err}</div>}
+        {ok && <div className="alert alert-success py-2 small mb-3" role="status"><i className="bi bi-check-circle-fill"/> {ok}</div>}
+        <div className="pf-sec">Data peserta</div>
+        <div className="row g-3">
+          <div className="col-12"><Field id="pf-name" label="Nama lengkap" req icon="person" error={fe.name}>{inp('name', 'Contoh: Budi Santoso', { type: 'text', autoFocus: true, ref: nameRef })}</Field></div>
+          <div className="col-12 col-md-6"><Field id="pf-whatsapp" label="Nomor WhatsApp" req icon="whatsapp" error={fe.whatsapp} hint="Awali dengan 08 atau 628. Tiket dikirim ke nomor ini.">{inp('whatsapp', '08123456789', { type: 'tel', inputMode: 'numeric' })}</Field></div>
+          <div className="col-12 col-md-6"><Field id="pf-email" label="Email" icon="envelope" error={fe.email} hint="Boleh dikosongkan.">{inp('email', 'nama@perusahaan.co.id', { type: 'email', inputMode: 'email' })}</Field></div>
+        </div>
+        <div className="pf-sec">Perusahaan</div>
+        <div className="row g-3">
+          <div className="col-12 col-md-6"><Field id="pf-institution" label="Nama perusahaan" icon="building">{inp('institution', 'Contoh: PT Maju Bersama', { type: 'text' })}</Field></div>
+          <div className="col-12 col-md-6"><Field id="pf-bidang" label="Bidang perusahaan" icon="briefcase">{inp('bidang', 'Contoh: Manufaktur', { type: 'text' })}</Field></div>
+        </div>
+        {multi && <><div className="pf-sec">Kehadiran</div>
+          <Field id="pf-hari" label="Batch kehadiran" req icon="calendar-event" error={fe.hari}>
+            <select id="pf-hari" className={'form-select' + (fe.hari ? ' is-invalid' : '')} disabled={busy} value={f.hari || ''} onChange={e => ubah('hari', e.target.value)}>
+              {f.hari === '?' && <option value="?" disabled>Pilih batch…</option>}
+              <option value="1">{'Batch 1 · ' + tgl(days[0])}</option><option value="2">{'Batch 2 · ' + tgl(days[1])}</option><option value="">Kedua hari</option></select></Field></>}
+        </div>
+        <div className="pf-foot">
+          <button type="button" className="btn btn-outline-secondary" disabled={busy} onClick={tutup}>Batal</button>
+          {!edit && <button type="button" className="btn btn-outline-primary" disabled={busy} onClick={() => save(null, true)}><i className="bi bi-plus-lg"/> Simpan &amp; tambah lagi</button>}
+          <button className={'btn btn-primary' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy}>{edit ? 'Simpan perubahan' : 'Simpan peserta'}</button></div>
+      </form></div>}</>
 }
