@@ -276,3 +276,17 @@ h1.h4{overflow-wrap:anywhere}
 ::-webkit-scrollbar-thumb{background-color:transparent;border-radius:99px;border:2px solid transparent;background-clip:padding-box}
 *:hover::-webkit-scrollbar-thumb{background-color:rgba(102,112,133,.38)}
 ::-webkit-scrollbar-thumb:hover{background-color:rgba(102,112,133,.6)}
+
+/* ===== Perbaikan scroll di HP =====
+   Tabel (Peserta, Tiket QR, Kirim tiket) berada di dalam wadah yang bisa digeser ke samping. Aturan "overscroll-behavior: contain" membuat
+   gesekan vertikal yang dimulai di atas tabel berhenti di tabel dan tidak meneruskan ke halaman, sehingga halaman terasa tidak bisa digulir.
+   Di layar sentuh, gulir vertikal diteruskan ke halaman; hanya gulir ke samping yang ditahan di tabel. */
+@media (max-width:991.98px){
+  html,body{overflow-y:auto;height:auto;overscroll-behavior-y:auto}
+  .table-responsive{overscroll-behavior-x:contain;overscroll-behavior-y:auto;touch-action:pan-x pan-y;max-height:none}
+  .pcol .scroll,.menu{overscroll-behavior-y:auto}
+  .content{overflow:visible;touch-action:pan-y pan-x}
+}
+@media (hover:none) and (pointer:coarse){
+  .table-responsive,.pcol .scroll{overscroll-behavior-y:auto}
+}

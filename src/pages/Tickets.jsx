@@ -1,13 +1,13 @@
 import { useDialog, Badge, SkelRows, MapsWarn, Skel } from '../ui'
 import { useEffect, useState } from 'react'; import QRCode from 'qrcode'; import JSZip from 'jszip'
 import { addDoc, collection, doc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore'
-import { useColState, useSeminar, wait, sendTicketWA, sendTicketEmail, validEmail, maskWa, maskEmail, showCode, useJagaProses, normHari, normCode } from '../hooks'; import { auth, db } from '../firebase'
+import { useColState, useSeminar, wait, perusahaanTeks, sendTicketWA, sendTicketEmail, validEmail, maskWa, maskEmail, showCode, useJagaProses, normHari, normCode } from '../hooks'; import { auth, db } from '../firebase'
 const newToken = () => { const b = crypto.getRandomValues(new Uint8Array(24)); return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') }
 const save = (href, name) => { const a = document.createElement('a'); a.href = href; a.download = name; a.click() }
-// Pencarian langsung: setiap kata yang diketik harus cocok dengan nama atau instansi; nomor tiket ikut dicari mulai 3 karakter (atau bila ada angka)
+// Pencarian langsung: setiap kata yang diketik harus cocok dengan nama, nama perusahaan, atau bidang perusahaan; nomor tiket ikut dicari mulai 3 karakter (atau bila ada angka)
 // agar mengetik satu-dua huruf nama tidak memunculkan peserta yang namanya tidak cocok hanya karena nomor tiketnya.
 const cocok = (p, t, q) => { const kata = q.toLowerCase().split(/\s+/).filter(Boolean); if (!kata.length) return true
-  const teks = `${p.name || ''} ${p.institution || ''}`.toLowerCase(), kode = t ? normCode(showCode(t.id)) : ''
+  const teks = `${p.name || ''} ${p.institution || ''} ${p.bidang || ''}`.toLowerCase(), kode = t ? normCode(showCode(t.id)) : ''
   return kata.every(k => teks.includes(k) || (kode && (k.length >= 3 || /\d/.test(k)) && normCode(k) && kode.includes(normCode(k)))) }
 
 // Popup QR: tampil langsung saat tombol "Lihat QR" ditekan; Esc atau klik di luar kotak untuk menutup
@@ -19,7 +19,7 @@ function QrModal({ t, onClose, onPng }) {
   return <div className="mdl-back" onMouseDown={e => e.target === e.currentTarget && onClose()}>
     <div className="mdl text-center" role="dialog" aria-modal="true" aria-labelledby="qr-t">
       <h2 id="qr-t" className="h5 mb-0">{t.participantName}</h2>
-      <div className="text-muted small">{t.institution || 'Tanpa instansi'}</div>
+      <div className="text-muted small">{perusahaanTeks(t) || 'Tanpa perusahaan'}</div>
       <div className={'qr-view' + (mati ? ' off' : '')}>{img ? <img src={img} alt={`Kode QR tiket ${t.participantName}`}/> : <Skel w="min(290px,100%)" h="290px" r="12px"/>}</div>
       <div className="code-chip mb-2">No. {showCode(t.id)}</div>
       <div className="mb-3"><Badge s={t.status}/></div>
@@ -30,7 +30,7 @@ function QrModal({ t, onClose, onPng }) {
 }
 export default function Tickets() {
   const ask = useDialog()
-  const [ps, lp] = useColState('participants'), [ts, lt] = useColState('tickets'), loading = lp || lt, { loaded: sl, mapsOk } = useSeminar(), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [auto, setAuto] = useState(true), [autoMail, setAutoMail] = useState(true), [q, setQ] = useState(''), [lihat, setLihat] = useState(null)
+  const [ps, lp] = useColState('participants'), [ts, lt] = useColState('tickets'), loading = lp || lt, { loaded: sl, mapsOk } = useSeminar(), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [auto, setAuto] = useState(false), [autoMail, setAutoMail] = useState(false), [q, setQ] = useState(''), [lihat, setLihat] = useState(null)
   useJagaProses(busy)
   const rincian = (arr) => arr.length ? ` Perhatian: ${arr.slice(0, 5).join('; ')}${arr.length > 5 ? `; dan ${arr.length - 5} lainnya` : ''}.` : ''
   const by = Object.fromEntries(ts.filter(t => t.status !== 'dicabut').map(t => [t.participantId, t]))
@@ -40,7 +40,7 @@ export default function Tickets() {
   const gen = async (list) => { setBusy(true); setMsg('')
     try { const made = list.map(p => ({ p, id: newToken() }))
       for (let i = 0; i < made.length; i += 400) { const b = writeBatch(db)
-        made.slice(i, i + 400).forEach(({ p, id }) => b.set(doc(db, 'tickets', id), { participantId: p.id, participantName: p.name, institution: p.institution || '', hari: normHari(p.hari), emailMasked: maskEmail(p.email), waMasked: maskWa(p.whatsapp), status: 'aktif', createdAt: serverTimestamp(), sentAt: null })); await b.commit() }
+        made.slice(i, i + 400).forEach(({ p, id }) => b.set(doc(db, 'tickets', id), { participantId: p.id, participantName: p.name, institution: p.institution || '', bidang: p.bidang || '', hari: normHari(p.hari), emailMasked: maskEmail(p.email), waMasked: maskWa(p.whatsapp), status: 'aktif', createdAt: serverTimestamp(), sentAt: null })); await b.commit() }
       await addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'buat tiket', count: list.length })
       let info = `${list.length} tiket dibuat.`; setMsg(info)
       if (auto && mapsOk) { const q = made.filter(x => x.p.whatsapp), gagal = []; let ok = 0
@@ -55,6 +55,7 @@ export default function Tickets() {
           if (i < qe.length - 1) await wait(1500 + Math.random() * 1000) }
         await addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'kirim email otomatis', sent: ok, failed: qe.length - ok })
         info += ` Email: ${ok} terkirim, ${qe.length - ok} gagal, ${list.length - qe.length} tanpa email valid.${rincian(gagal)} Yang belum terkirim bisa diulang di menu Distribusi.` }
+      if (!(auto && mapsOk) && !(autoMail && mapsOk)) info += ' Tiket belum dikirim ke peserta. Kirim lewat menu Kirim tiket bila sudah siap.'
       setMsg(info) } catch (e) { setMsg('Gagal membuat tiket: ' + e.message) } setBusy(false) }
   const png = async (t, p) => save(await QRCode.toDataURL(t.id, { width: 700, margin: 2 }), `tiket-${(p?.name || t.id).replace(/[^\w-]+/g, '_')}.png`)
   const zip = async () => { setBusy(true); const z = new JSZip()
@@ -70,7 +71,7 @@ export default function Tickets() {
     <button className={'btn btn-primary btn-sm' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy || !todo.length} onClick={() => gen(todo)}>{`Buat ${todo.length} tiket`}</button></div>
     <MapsWarn loaded={sl} mapsOk={mapsOk}/>
     {msg && <div className="alert alert-info">{msg}</div>}
-    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} type="search" autoComplete="off" aria-label="Cari peserta atau nomor tiket" placeholder="Cari nama, instansi, atau nomor tiket (langsung muncul)" value={q} onChange={e => setQ(e.target.value)}/>
+    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} type="search" autoComplete="off" aria-label="Cari peserta atau nomor tiket" placeholder="Cari nama, perusahaan, atau nomor tiket (langsung muncul)" value={q} onChange={e => setQ(e.target.value)}/>
       {!loading && q.trim() && <span className="small text-muted" role="status" aria-live="polite">{tampil.length} dari {ps.length} peserta</span>}</div>
     <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Peserta</th><th>No. tiket</th><th>Status tiket</th><th/></tr></thead><tbody>
       {loading && <SkelRows rows={6} cols={4}/>}

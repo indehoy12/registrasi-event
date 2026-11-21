@@ -3,7 +3,7 @@ import { addDoc, collection, doc, serverTimestamp, writeBatch } from 'firebase/f
 const key = (r) => r.whatsapp
 // Judul kolom dibandingkan tanpa huruf besar/kecil, spasi, dan tanda baca: "Whatsapp", "No. HP", atau "nama lengkap" tetap terbaca
 const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '')
-const ALIAS = { name: ['nama', 'namalengkap', 'name'], email: ['email', 'surel', 'alamatemail'], whatsapp: ['whatsapp', 'wa', 'nowa', 'nohp', 'nomorhp', 'nomorwa', 'nomorwhatsapp', 'hp', 'telepon', 'phone'], institution: ['instansi', 'asalinstansi', 'institusi', 'organisasi', 'institution'], hari: ['hari', 'harike', 'hariacara', 'hadirhari'] }
+const ALIAS = { name: ['nama', 'namalengkap', 'name'], email: ['email', 'surel', 'alamatemail'], whatsapp: ['whatsapp', 'wa', 'nowa', 'nohp', 'nomorhp', 'nomorwa', 'nomorwhatsapp', 'hp', 'telepon', 'phone'], institution: ['namaperusahaan', 'perusahaan', 'company', 'instansi', 'asalinstansi', 'institusi', 'organisasi', 'institution'], bidang: ['bidangperusahaan', 'bidangusaha', 'bidang', 'sektor', 'industri', 'industry'], hari: ['hari', 'harike', 'hariacara', 'hadirhari'] }
 const ambil = (x, k) => { const h = Object.keys(x).find(c => ALIAS[k].includes(norm(c))); return h === undefined ? '' : x[h] }
 // Kolom Hari (opsional): 1, 2, "hari ke-2" = hanya hari itu; kosong, "1,2", "kedua", "semua" = kedua hari (disimpan kosong). null = tidak dikenali.
 const parseHari = (v) => { const s = String(v ?? '').trim().toLowerCase(); if (!s) return ''
@@ -20,7 +20,7 @@ export default function Import() {
       const heads = new Set(j.flatMap(x => Object.keys(x)).map(norm))
       if (!ALIAS.name.some(a => heads.has(a)) || !ALIAS.whatsapp.some(a => heads.has(a))) throw new Error('Kolom Nama dan WhatsApp tidak ditemukan di baris pertama. Gunakan template (tombol Unduh template).')
       const seen = new Set(existing.map(r => waNumber(r.whatsapp))), ok = [], badRows = []; let dup = 0
-      j.forEach((x, i) => { const r = { name: String(ambil(x, 'name') || '').trim(), email: String(ambil(x, 'email') || '').trim(), whatsapp: waNumber(String(ambil(x, 'whatsapp') || '')), waAsli: String(ambil(x, 'whatsapp') || '').trim(), institution: String(ambil(x, 'institution') || '').trim() }, line = i + 2, hv = parseHari(ambil(x, 'hari')); r.hari = hv ?? ''
+      j.forEach((x, i) => { const r = { name: String(ambil(x, 'name') || '').trim(), email: String(ambil(x, 'email') || '').trim(), whatsapp: waNumber(String(ambil(x, 'whatsapp') || '')), waAsli: String(ambil(x, 'whatsapp') || '').trim(), institution: String(ambil(x, 'institution') || '').trim(), bidang: String(ambil(x, 'bidang') || '').trim() }, line = i + 2, hv = parseHari(ambil(x, 'hari')); r.hari = hv ?? ''
         if (!r.name && !r.whatsapp && !r.email) return
         if (!r.name) return badRows.push(`Baris ${line}: nama kosong`)
         if (hv === null) return badRows.push(`Baris ${line} (${r.name}): kolom Hari harus 1, 2, atau kosong (kedua hari)`)
@@ -44,13 +44,13 @@ export default function Import() {
     setBusy(false) }
   const tpl = async () => { try { const { unduhTemplate } = await import('../excel'); await unduhTemplate() } catch (ex) { setErr('Gagal membuat template: ' + (ex.message || ex)) } }
   return <><h1 className="h4 mb-3">Import peserta</h1>{msg && <div className="alert alert-success" role="status">{msg}</div>}{err && <div className="alert alert-danger" role="alert">{err}</div>}
-    <p className="text-muted">Kolom wajib: Nama dan WhatsApp. Email dan Instansi boleh kosong. Bila kegiatan 2 hari dan pesertanya berbeda tiap hari, isi kolom <b>Hari</b> dengan 1 atau 2 (kosong = hadir di kedua hari). <button className="btn btn-link p-0" onClick={tpl}>Unduh template</button></p>
+    <p className="text-muted">Kolom wajib: Nama dan WhatsApp. Email, Nama Perusahaan, dan Bidang Perusahaan boleh kosong. Bila kegiatan 2 hari dan pesertanya berbeda tiap hari, isi kolom <b>Hari</b> dengan 1 atau 2 (kosong = hadir di kedua hari). <button className="btn btn-link p-0" onClick={tpl}>Unduh template</button></p>
     {loadEx ? <Skel w="400px" h="2.4rem" r="8px" className="mb-3"/> : <input type="file" accept=".xlsx,.xls,.csv" className="form-control mb-3" style={{maxWidth:400}} disabled={busy} onChange={read}/>}
     {reading && <div aria-busy="true" aria-label="Membaca file"><Skel w="40%" className="mb-2"/><Skel h="1.1rem" className="mb-1"/><Skel h="1.1rem" className="mb-1"/><Skel h="1.1rem" className="mb-3"/></div>}
     {skipped > 0 && <div className="alert alert-warning">{skipped} baris dilewati karena nomor WhatsApp sama (duplikat).</div>}
     {bad.length > 0 && <div className="alert alert-danger"><b>{bad.length} baris tidak diimport:</b><ul className="mb-0">{bad.slice(0, 10).map((m, i) => <li key={i}>{m}</li>)}</ul>{bad.length > 10 && <div>…dan {bad.length - 10} baris lainnya.</div>}</div>}
     {rows.length > 0 && multi && !adaHari && <div className="alert alert-warning">Kolom <b>Hari</b> tidak ada di file ini, jadi semua peserta dianggap hadir di <b>kedua hari</b>. Tambahkan kolom Hari (1 atau 2) bila pesertanya berbeda tiap hari.</div>}
     {rows.length > 0 && <><p>{rows.length} baris siap diimport. Pratinjau 5 baris pertama:</p>
-      <div className="table-responsive"><table className="table table-sm"><tbody>{rows.slice(0,5).map((r,i)=><tr key={i}><td>{r.name}</td><td>{r.email}</td><td>{r.whatsapp}</td><td>{r.institution}</td>{multi && <td>{hariTeks(r, days)}</td>}</tr>)}</tbody></table></div>
+      <div className="table-responsive"><table className="table table-sm"><tbody>{rows.slice(0,5).map((r,i)=><tr key={i}><td>{r.name}</td><td>{r.email}</td><td>{r.whatsapp}</td><td>{r.institution}</td><td>{r.bidang}</td>{multi && <td>{hariTeks(r, days)}</td>}</tr>)}</tbody></table></div>
       <button className={'btn btn-primary' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy} onClick={go}>{`Import ${rows.length} peserta`}</button></>}</>
 }

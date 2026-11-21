@@ -19,7 +19,7 @@ service cloud.firestore {
     match /tickets/{id} {
       allow get: if true;
       allow list: if staff(); // petugas perlu mencari nomor tiket secara manual
-      allow create: if admin();
+      allow create, delete: if admin(); // delete: hanya untuk fitur "Bersihkan data uji" (Akun dan log, Super Admin)
       // petugas: menambah TEPAT SATU hari check-in, atau membatalkan check-in miliknya sendiri dalam 10 menit (salah scan)
       allow update: if admin() || (staff() && resource.data.status != 'dicabut' && request.resource.data.status == 'aktif'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','usedDays','usedAt','usedBy'])

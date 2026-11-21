@@ -13,6 +13,8 @@ export const useCol = (name, order) => useColState(name, order)[0]
 export const fmt = (t) => t?.toDate ? t.toDate().toLocaleString('id-ID') : (t || '')
 // Nomor HP Indonesia selalu menjadi 628xxxxxxxxxx: 08..., +62 8..., 8..., dan salah ketik "+62 08..." dirapikan otomatis
 export const waNumber = (n = '') => { let d = String(n).replace(/\D/g, ''); if (d.startsWith('620')) d = '62' + d.slice(3); return d.startsWith('0') ? '62' + d.slice(1) : d.startsWith('8') ? '62' + d : d }
+// Teks ringkas perusahaan peserta: "Nama perusahaan · Bidang perusahaan" (field lama `institution` tetap dipakai untuk nama perusahaan)
+export const perusahaanTeks = (x) => [x?.institution, x?.bidang].filter(Boolean).join(' · ')
 export const validWa = (n) => /^628\d{8,11}$/.test(n)
 export const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(e)
 export const ticketLink = (id) => `${location.origin}/tiket/${id}`

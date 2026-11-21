@@ -69,7 +69,7 @@ export function CheckinModal({ name, institution, code, hari, onRep, onUndo, onC
       <svg className="ai ok" viewBox="0 0 52 52" aria-hidden="true"><circle className="ai-c" cx="26" cy="26" r="24" fill="none" pathLength="1"/><path className="ai-m" fill="none" d="M15 27l8 8 15-17" pathLength="1"/></svg>
       <h2 id="ck-t" className="h5 mb-1 text-success">Check-in berhasil</h2>{hari && <div className="small text-muted mb-1">{hari}</div>}
       <div className="fw-bold fs-4 lh-sm">{name}</div>
-      <div className="text-muted">{institution || 'Tanpa instansi'}</div>
+      <div className="text-muted">{institution || 'Tanpa perusahaan'}</div>
       <div className="code-chip my-2">No. {code}</div>
       {saved && <div className="ck-rep"><i className="bi bi-person-badge"/> Diwakili oleh <b>{saved}</b></div>}
       {edit && !saved && <form onSubmit={save} className="text-start mt-2">

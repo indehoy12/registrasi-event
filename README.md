@@ -11,7 +11,7 @@
 Pengiriman memakai Netlify Function `netlify/functions/send-wa.mjs`. Isi environment variable di Netlify: `FONNTE_TOKEN`, `FB_API_KEY`, `FB_PROJECT_ID`, `SITE_URL`. Function hanya bisa dideploy lewat Git atau Netlify CLI (bukan drag-and-drop): `netlify deploy --prod --build`. Uji lokal dengan `netlify dev`.
 
 ## Pengiriman otomatis tiket (Fonnte)
-- Menu Tiket: centang "Kirim otomatis via WhatsApp", lalu klik "Buat tiket". Setiap tiket baru langsung dikirim ke WhatsApp peserta (jeda 3-6 detik per pesan).
+- Membuat tiket TIDAK otomatis mengirim apa pun. Kotak "Kirim otomatis via WhatsApp" dan "dan email" di menu Tiket tidak tercentang secara default; kirim lewat menu Kirim tiket. Bila sengaja dicentang sebelum klik "Buat tiket", tiket baru langsung dikirim (jeda 3-6 detik per pesan).
 - Pesan berisi nama, judul, tanggal, waktu, tempat, gambar QR (`/qr/<kode>.png`), dan tautan tiket cadangan.
 - Lampiran gambar hanya diterima Fonnte pada paket Super/Advanced/Ultra. Di paket lain, sistem otomatis mengirim pesan teks + tautan tiket.
 - Yang gagal terkirim tetap berstatus "Belum" di menu Distribusi dan bisa dikirim ulang.
@@ -50,11 +50,11 @@ Isi email sama dengan pesan WhatsApp; QR dilampirkan sebagai gambar. Dikirim lew
 
 ## Catatan perilaku data
 - Menghapus peserta otomatis mencabut tiketnya. Riwayat check-in yang sudah ada tetap tersimpan dan tetap tampil di laporan.
-- Mengubah nama/instansi peserta ikut memperbarui tiketnya. Bila WhatsApp atau email diubah, status kirim direset ke "Belum" di menu Distribusi agar tiket bisa dikirim ke kontak baru.
+- Mengubah nama, nama perusahaan, dan bidang perusahaan peserta ikut memperbarui tiketnya. Bila WhatsApp atau email diubah, status kirim direset ke "Belum" di menu Distribusi agar tiket bisa dikirim ke kontak baru.
 
 ## Laporan Excel
 Menu **Laporan** menghasilkan file Excel tiga lembar (dibuat dengan ExcelJS, dimuat hanya saat tombol ditekan):
-- **Ringkasan**: rekap per hari dan per instansi. Angkanya berupa rumus yang mengacu ke lembar Kehadiran, jadi ikut berubah bila data di sana diedit.
+- **Ringkasan**: rekap per hari dan per perusahaan. Angkanya berupa rumus yang mengacu ke lembar Kehadiran, jadi ikut berubah bila data di sana diedit.
 - **Kehadiran**: satu baris per peserta, status berwarna (hadir/belum/perwakilan), kolom dibekukan dan bisa difilter. Peserta yang sudah dihapus tetapi pernah check-in ditandai "(peserta sudah dihapus)".
 - **Riwayat check-in**: urut waktu, lengkap dengan cara (QR/manual) dan petugas.
 Tampilan polos: latar putih tanpa warna, status dibedakan lewat huruf tebal/miring. Semua lembar sudah diatur untuk dicetak (A4, lebar muat satu halaman, judul kolom berulang di tiap halaman).
@@ -67,3 +67,10 @@ Tampilan polos: latar putih tanpa warna, status dibedakan lewat huruf tebal/miri
 - **Dashboard dan Laporan** menghitung persentase per hari terhadap peserta yang dijadwalkan pada hari itu saja. Di Excel, tanda `-` berarti peserta tidak dijadwalkan pada hari tersebut.
 - Tiket yang dibuat sebelum fitur ini tidak punya hari dan dianggap berlaku di kedua hari. Buka Peserta, Ubah, lalu Simpan untuk menyamakan tiketnya.
 - Pembatasan hari dijaga oleh aplikasi (scanner), bukan oleh `firestore.rules`.
+
+## Membersihkan data uji (Super Admin)
+Menu **Akun dan log**, kartu **Bersihkan data uji** di bagian bawah. Ketik `HAPUS` untuk mengonfirmasi. Tindakan ini tidak bisa dibatalkan dan tercatat di audit log.
+- **Reset kehadiran:** menghapus semua catatan check-in dan mengembalikan tiket ke "belum hadir". Peserta dan tiket tetap ada (status terkirim juga tetap), jadi tidak perlu import atau kirim ulang. Pakai setelah uji scan.
+- **Hapus semua data peserta:** menghapus semua peserta, tiket, dan check-in. Informasi seminar, akun, dan audit log tetap ada. QR atau tautan tiket yang pernah dikirim tidak berlaku lagi. Pakai sebelum mengimport peserta asli.
+- Fitur ini butuh aturan `delete` pada koleksi `tickets` di `firestore.rules`. **Publish ulang** `firestore.rules` di Firebase Console setelah update ini.
+- Jangan dijalankan saat acara berlangsung. Bila jaringan terputus di tengah proses, jalankan lagi sampai selesai (aman diulang).

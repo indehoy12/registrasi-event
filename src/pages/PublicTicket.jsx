@@ -18,7 +18,7 @@ export default function PublicTicket() {
 
   const kode = showCode(token)
   const waktu = sem.time ? `Pukul ${sem.time.replace(':', '.')} WIB` : ''
-  const peserta = t && [['Nama lengkap', t.participantName], ['Instansi', t.institution], ['Email', t.emailMasked], ['Nomor WhatsApp', t.waMasked], ['Nomor tiket', kode]].filter(r => r[1])
+  const peserta = t && [['Nama lengkap', t.participantName], ['Nama perusahaan', t.institution], ['Bidang perusahaan', t.bidang], ['Email', t.emailMasked], ['Nomor WhatsApp', t.waMasked], ['Nomor tiket', kode]].filter(r => r[1])
   const peta = normMaps(sem.mapsUrl), pt = peta ? coordsFromMaps(peta) : null
   // Kegiatan 1 atau 2 hari; QR yang sama dipakai di semua hari, kehadiran dicatat per hari
   // Peserta berbeda tiap hari: tiket hanya menampilkan hari milik peserta itu

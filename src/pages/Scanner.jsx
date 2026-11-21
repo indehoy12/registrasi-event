@@ -3,7 +3,7 @@ import { Html5Qrcode } from 'html5-qrcode'
 import { addDoc, collection, deleteField, doc, getDoc, onSnapshot, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { ResultModal, CheckinModal, Skel, SkelList, useDialog } from '../ui'
-import { useColState, useSeminar, jam, showCode, ticketCode, normCode, parseTicketInput, hariList, hariAktif, hariKunci, hariLabel, usedOn, ckDay, hariBoleh, hariPeserta } from '../hooks'
+import { useColState, useSeminar, perusahaanTeks, jam, showCode, ticketCode, normCode, parseTicketInput, hariList, hariAktif, hariKunci, hariLabel, usedOn, ckDay, hariBoleh, hariPeserta } from '../hooks'
 
 const JENDELA = 10 * 60 * 1000   // waktu koreksi check-in oleh petugas (sama dengan firestore.rules)
 export default function Scanner() {
@@ -60,7 +60,7 @@ export default function Scanner() {
         tx.update(ref, { status: 'aktif', [`usedDays.${dy}`]: serverTimestamp(), usedAt: serverTimestamp(), usedBy: auth.currentUser.email })
         tx.set(cref, { participantId: d.participantId, participantName: d.participantName, ticketId: id, ticketCode: ticketCode(id), via, day: dy,
           isRepresentative: false, representativeName: null, officerEmail: auth.currentUser.email, checkedInAt: serverTimestamp() })
-        info = { name: d.participantName, institution: d.institution, code: showCode(id), day: dy, hari: daysRef.current.length > 1 ? `Hari ke-${daysRef.current.indexOf(dy) + 1}` : '' }
+        info = { name: d.participantName, institution: perusahaanTeks(d), code: showCode(id), day: dy, hari: daysRef.current.length > 1 ? `Hari ke-${daysRef.current.indexOf(dy) + 1}` : '' }
       })
       addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'check-in' + (via === 'manual' ? ' manual' : ''), participant: info.name, representative: null }).catch(() => {})
       setRes({ ok: true, ...info, checkinId: cref.id, ticketId: id })
@@ -95,11 +95,11 @@ export default function Scanner() {
 
   const ganti = (m) => { if (m === mode) return; setMode(m); setManualErr(''); if (m === 'manual') setTimeout(() => codeRef.current?.focus(), 50) }
 
-  // Pencarian langsung (live): hasil muncul setiap ketikan; nama, instansi, nomor tiket, atau tautan tiket. Satu sentuhan = check-in.
+  // Pencarian langsung (live): hasil muncul setiap ketikan; nama, perusahaan, nomor tiket, atau tautan tiket. Satu sentuhan = check-in.
   const q = code.trim(), qn = normCode(q), ql = q.toLowerCase()
   const isLink = /\/tiket\/|^[\w-]{16,80}$/.test(q)
   const hits = !q ? [] : isLink ? tickets.filter(t => t.id === parseTicketInput(q).token)
-    : tickets.filter(t => (t.participantName || '').toLowerCase().includes(ql) || (t.institution || '').toLowerCase().includes(ql) || (qn.length >= 3 && normCode(ticketCode(t.id)).includes(qn)))
+    : tickets.filter(t => (t.participantName || '').toLowerCase().includes(ql) || (t.institution || '').toLowerCase().includes(ql) || (t.bidang || '').toLowerCase().includes(ql) || (qn.length >= 3 && normCode(ticketCode(t.id)).includes(qn)))
       .sort((x, y) => (x.participantName || '').localeCompare(y.participantName || ''))
   const pilih = async (t) => {
     if (busy) return
@@ -171,7 +171,7 @@ export default function Scanner() {
           {!listErr && q && !tkLoaded && <div className="mt-2" aria-busy="true"><Skel h="3.6rem" r="12px" className="mb-2"/><Skel h="3.6rem" r="12px"/></div>}
           {!listErr && q && tkLoaded && <div className="hits mt-2" role="listbox" aria-label="Hasil pencarian">
             {hits.slice(0, 6).map(t => <button type="button" role="option" key={t.id} className={`hit ${st(t)}`} disabled={busy} onClick={() => pilih(t)}>
-              <span className="flex-fill text-start"><b>{t.participantName}</b><small className="d-block text-muted">{t.institution || 'Tanpa instansi'} · <span className="tk-code">{showCode(t.id)}</span></small></span>
+              <span className="flex-fill text-start"><b>{t.participantName}</b><small className="d-block text-muted">{perusahaanTeks(t) || 'Tanpa perusahaan'} · <span className="tk-code">{showCode(t.id)}</span></small></span>
               {st(t) === 'aktif' ? <span className="hit-go"><i className="bi bi-check2-circle"/> Check-in</span> : st(t) === 'terpakai' ? <span className="badge text-bg-warning">Sudah hadir</span> : st(t) === 'lain' ? <span className="badge text-bg-secondary">Bukan jadwalnya</span> : <span className="badge text-bg-danger">Dinonaktifkan</span>}</button>)}
             {hits.length > 6 && <div className="small text-muted text-center py-1">Masih ada {hits.length - 6} hasil lain. Ketik lebih lengkap untuk mempersempit.</div>}
             {!hits.length && <div className="text-muted text-center py-3">Tidak ditemukan. Periksa ejaan nama atau nomor tiket.</div>}
