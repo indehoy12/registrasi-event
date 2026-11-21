@@ -53,11 +53,14 @@ const tgl = (s) => new Date(s + 'T00:00:00Z').toLocaleDateString('id-ID', { date
 export function isiPesan({ pf, sf, maps, base, ticketId, adaGambar }) {
   const title = sf.title?.stringValue || 'Seminar', time = sf.time?.stringValue, place = sf.location?.stringValue
   const d1 = sf.date?.stringValue, d2 = sf.date2?.stringValue
+  // Peserta berbeda tiap hari: kolom hari berisi "1" atau "2" = hanya hari itu; kosong atau "1,2" = kedua hari
+  const hs = [...new Set((pf.hari?.stringValue || '').match(/[12]/g) || [])], satu = !!d2 && hs.length === 1, dua = !!d2 && !satu
+  const dSatu = satu && hs[0] === '2' ? d2 : d1
   const link = `${base}/tiket/${ticketId}`
   const c8 = ticketId.replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase(), nomor = c8.slice(0, 4) + ' ' + c8.slice(4)
   const detail = [
-    ...(d2 ? [d1 && `Hari ke-1 : ${tgl(d1)}`, `Hari ke-2 : ${tgl(d2)}`] : [d1 && `Hari/Tanggal : ${tgl(d1)}`]),
-    time && `Waktu : pukul ${time.replace(':', '.')}`, place && `Tempat : ${place}`].filter(Boolean)
+    ...(dua ? [d1 && `Hari ke-1 : ${tgl(d1)}`, `Hari ke-2 : ${tgl(d2)}`] : [dSatu && `Hari/Tanggal : ${tgl(dSatu)}`]),
+    time && `Waktu : pukul ${time.replace(':', '.')} WIB`, place && `Tempat : ${place}`].filter(Boolean)
   const teks = [
     `Yth. Bapak/Ibu ${pf.name?.stringValue || ''},`,
     '',
@@ -75,9 +78,9 @@ export function isiPesan({ pf, sf, maps, base, ticketId, adaGambar }) {
     ...(adaGambar ? ['', 'Apabila kode QR tidak tampil, tiket dapat dibuka melalui tautan berikut:'] : []),
     link,
     '',
-    `Nomor tiket: ${B1}${nomor}${B2} (sebutkan kepada petugas apabila kode QR tidak dapat dipindai).`,
+    'Apabila kode QR tidak dapat dipindai, petugas dapat mencari data Bapak/Ibu berdasarkan nama.',
     '',
-    d2 ? 'Kode QR yang sama dipakai pada kedua hari kegiatan, dan dipindai satu kali setiap hari. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.'
+    dua ? 'Kode QR yang sama dipakai pada kedua hari kegiatan, dan dipindai satu kali setiap hari. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.'
        : 'Kode QR ini berlaku untuk satu kali registrasi. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.',
     '',
     'Atas perhatian dan kehadiran Bapak/Ibu, kami ucapkan terima kasih.',

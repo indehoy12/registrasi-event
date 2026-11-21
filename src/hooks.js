@@ -11,8 +11,9 @@ export function useColState(name, order) {
 }
 export const useCol = (name, order) => useColState(name, order)[0]
 export const fmt = (t) => t?.toDate ? t.toDate().toLocaleString('id-ID') : (t || '')
-export const waNumber = (n = '') => { const d = String(n).replace(/\D/g, ''); return d.startsWith('0') ? '62' + d.slice(1) : d.startsWith('8') ? '62' + d : d }
-export const validWa = (n) => /^62\d{8,13}$/.test(n)
+// Nomor HP Indonesia selalu menjadi 628xxxxxxxxxx: 08..., +62 8..., 8..., dan salah ketik "+62 08..." dirapikan otomatis
+export const waNumber = (n = '') => { let d = String(n).replace(/\D/g, ''); if (d.startsWith('620')) d = '62' + d.slice(3); return d.startsWith('0') ? '62' + d.slice(1) : d.startsWith('8') ? '62' + d : d }
+export const validWa = (n) => /^628\d{8,11}$/.test(n)
 export const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(e)
 export const ticketLink = (id) => `${location.origin}/tiket/${id}`
 export const wait = (ms) => new Promise(r => setTimeout(r, ms))
@@ -42,6 +43,13 @@ export const hariLabel = (days, d) => { const tg = /^\d{4}-/.test(d) ? new Date(
 // Waktu check-in tiket pada hari tertentu (tiket lama berstatus 'terpakai' dianggap hadir di hari pertama)
 export const usedOn = (t, d, days) => t?.usedDays?.[d] || (t?.status === 'terpakai' && d === days[0] ? (t.usedAt || true) : null)
 export const ckDay = (c, days) => c.day || days[0]
+// Peserta berbeda tiap hari: kolom "hari" pada peserta dan tiket berisi "1", "2" (atau "1,2"). Kosong = semua hari (perilaku lama).
+export const normHari = (h) => { const n = [...new Set(String(h ?? '').match(/[12]/g) || [])]; return n.length === 1 ? n[0] : '' }
+export const hariPeserta = (x, days) => { const n = [...new Set(String(x?.hari ?? '').match(/[12]/g) || [])].map(Number).filter(i => i <= days.length); return n.length ? n : days.map((_, i) => i + 1) }
+export const hariBoleh = (x, d, days) => { const i = days.indexOf(d); return i < 0 || hariPeserta(x, days).includes(i + 1) }
+export const hariTeks = (x, days) => { if (days.length < 2) return ''; const h = hariPeserta(x, days); return h.length === days.length ? 'Kedua hari' : 'Hari ke-' + h.join(', ') }
+// Jumlah peserta yang dijadwalkan pada hari d, ditambah peserta yang sudah dihapus tetapi pernah check-in pada hari itu
+export const totalHari = (ps, cs, d, days) => { const id = new Set(ps.map(p => p.id)); return ps.filter(p => hariBoleh(p, d, days)).length + new Set(cs.filter(c => ckDay(c, days) === d && !id.has(c.participantId)).map(c => c.participantId)).size }
 export async function sendTicketEmail(ticketId) {
   const r = await fetch('/.netlify/functions/send-email', { method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser.getIdToken()}` }, body: JSON.stringify({ ticketId }) })

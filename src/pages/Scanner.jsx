@@ -3,7 +3,7 @@ import { Html5Qrcode } from 'html5-qrcode'
 import { addDoc, collection, deleteField, doc, getDoc, onSnapshot, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { ResultModal, CheckinModal, Skel, SkelList, useDialog } from '../ui'
-import { useColState, useSeminar, jam, showCode, ticketCode, normCode, parseTicketInput, hariList, hariAktif, hariKunci, hariLabel, usedOn, ckDay } from '../hooks'
+import { useColState, useSeminar, jam, showCode, ticketCode, normCode, parseTicketInput, hariList, hariAktif, hariKunci, hariLabel, usedOn, ckDay, hariBoleh, hariPeserta } from '../hooks'
 
 const JENDELA = 10 * 60 * 1000   // waktu koreksi check-in oleh petugas (sama dengan firestore.rules)
 export default function Scanner() {
@@ -19,7 +19,7 @@ export default function Scanner() {
   const { sem, loaded: semLoaded } = useSeminar(), days = hariList(sem), [pick, setPick] = useState(null), multi = days.length > 1
   const day = pick && days.includes(pick) ? pick : hariAktif(days), dayNo = days.indexOf(day) + 1
   const dayRef = useRef(day), daysRef = useRef(days), semRef = useRef(semLoaded); dayRef.current = day; daysRef.current = days; semRef.current = semLoaded
-  const st = (t) => t.status === 'dicabut' ? 'dicabut' : usedOn(t, day, days) ? 'terpakai' : 'aktif'
+  const st = (t) => t.status === 'dicabut' ? 'dicabut' : !hariBoleh(t, day, days) ? 'lain' : usedOn(t, day, days) ? 'terpakai' : 'aktif'
 
   // Daftar tiket (live) dipakai untuk pencarian nomor tiket dan penghitung kehadiran
   useEffect(() => onSnapshot(collection(db, 'tickets'),
@@ -27,12 +27,13 @@ export default function Scanner() {
     e => { console.error('Gagal membaca tiket:', e.code); setListErr(true); setTkLoaded(true) }), [])
 
   ckRef.current = checkins
-  const aktif = tickets.filter(t => t.status !== 'dicabut'), hadir = aktif.filter(t => usedOn(t, day, days)).length
+  const aktif = tickets.filter(t => t.status !== 'dicabut' && hariBoleh(t, day, days)), hadir = aktif.filter(t => usedOn(t, day, days)).length
 
   // Pesan jelas untuk setiap status tiket
   const cekStatus = (t) => {
     const d = dayRef.current, ds = daysRef.current
     if (t.status === 'dicabut') return `Tiket atas nama ${t.participantName} sudah dinonaktifkan panitia.`
+    if (!hariBoleh(t, d, ds)) return `Tiket atas nama ${t.participantName} hanya berlaku untuk hari ke-${hariPeserta(t, ds).join(' dan ')}, bukan hari ke-${ds.indexOf(d) + 1}.`
     const u = usedOn(t, d, ds)
     if (u) {
       const c = ckRef.current.find(x => x.ticketId === t.id && ckDay(x, ds) === d)
@@ -54,6 +55,7 @@ export default function Scanner() {
         const d = t.data()
         const dy = dayRef.current
         if (d.status === 'dicabut') throw new Error('Tiket sudah dinonaktifkan.')
+        if (!hariBoleh(d, dy, daysRef.current)) throw new Error(`Tiket ini hanya berlaku untuk hari ke-${hariPeserta(d, daysRef.current).join(' dan ')}, bukan hari ke-${daysRef.current.indexOf(dy) + 1}.`)
         if (usedOn(d, dy, daysRef.current)) throw new Error('Tiket ini sudah tercatat hadir pada hari ini (mungkin baru saja dipindai di perangkat lain).')
         tx.update(ref, { status: 'aktif', [`usedDays.${dy}`]: serverTimestamp(), usedAt: serverTimestamp(), usedBy: auth.currentUser.email })
         tx.set(cref, { participantId: d.participantId, participantName: d.participantName, ticketId: id, ticketCode: ticketCode(id), via, day: dy,
@@ -170,7 +172,7 @@ export default function Scanner() {
           {!listErr && q && tkLoaded && <div className="hits mt-2" role="listbox" aria-label="Hasil pencarian">
             {hits.slice(0, 6).map(t => <button type="button" role="option" key={t.id} className={`hit ${st(t)}`} disabled={busy} onClick={() => pilih(t)}>
               <span className="flex-fill text-start"><b>{t.participantName}</b><small className="d-block text-muted">{t.institution || 'Tanpa instansi'} · <span className="tk-code">{showCode(t.id)}</span></small></span>
-              {st(t) === 'aktif' ? <span className="hit-go"><i className="bi bi-check2-circle"/> Check-in</span> : st(t) === 'terpakai' ? <span className="badge text-bg-warning">Sudah hadir</span> : <span className="badge text-bg-danger">Dinonaktifkan</span>}</button>)}
+              {st(t) === 'aktif' ? <span className="hit-go"><i className="bi bi-check2-circle"/> Check-in</span> : st(t) === 'terpakai' ? <span className="badge text-bg-warning">Sudah hadir</span> : st(t) === 'lain' ? <span className="badge text-bg-secondary">Bukan jadwalnya</span> : <span className="badge text-bg-danger">Dinonaktifkan</span>}</button>)}
             {hits.length > 6 && <div className="small text-muted text-center py-1">Masih ada {hits.length - 6} hasil lain. Ketik lebih lengkap untuk mempersempit.</div>}
             {!hits.length && <div className="text-muted text-center py-3">Tidak ditemukan. Periksa ejaan nama atau nomor tiket.</div>}
           </div>}

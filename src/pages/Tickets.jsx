@@ -1,7 +1,7 @@
 import { useDialog, Badge, SkelRows, MapsWarn } from '../ui'
 import { useState } from 'react'; import QRCode from 'qrcode'; import JSZip from 'jszip'
 import { addDoc, collection, doc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore'
-import { useColState, useSeminar, wait, sendTicketWA, sendTicketEmail, validEmail, maskWa, maskEmail, showCode, useJagaProses } from '../hooks'; import { auth, db } from '../firebase'
+import { useColState, useSeminar, wait, sendTicketWA, sendTicketEmail, validEmail, maskWa, maskEmail, showCode, useJagaProses, normHari } from '../hooks'; import { auth, db } from '../firebase'
 const newToken = () => { const b = crypto.getRandomValues(new Uint8Array(24)); return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') }
 const save = (href, name) => { const a = document.createElement('a'); a.href = href; a.download = name; a.click() }
 export default function Tickets() {
@@ -14,7 +14,7 @@ export default function Tickets() {
   const gen = async (list) => { setBusy(true); setMsg('')
     try { const made = list.map(p => ({ p, id: newToken() }))
       for (let i = 0; i < made.length; i += 400) { const b = writeBatch(db)
-        made.slice(i, i + 400).forEach(({ p, id }) => b.set(doc(db, 'tickets', id), { participantId: p.id, participantName: p.name, institution: p.institution || '', emailMasked: maskEmail(p.email), waMasked: maskWa(p.whatsapp), status: 'aktif', createdAt: serverTimestamp(), sentAt: null })); await b.commit() }
+        made.slice(i, i + 400).forEach(({ p, id }) => b.set(doc(db, 'tickets', id), { participantId: p.id, participantName: p.name, institution: p.institution || '', hari: normHari(p.hari), emailMasked: maskEmail(p.email), waMasked: maskWa(p.whatsapp), status: 'aktif', createdAt: serverTimestamp(), sentAt: null })); await b.commit() }
       await addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'buat tiket', count: list.length })
       let info = `${list.length} tiket dibuat.`; setMsg(info)
       if (auto && mapsOk) { const q = made.filter(x => x.p.whatsapp), gagal = []; let ok = 0

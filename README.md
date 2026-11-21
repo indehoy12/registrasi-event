@@ -58,3 +58,12 @@ Menu **Laporan** menghasilkan file Excel tiga lembar (dibuat dengan ExcelJS, dim
 - **Kehadiran**: satu baris per peserta, status berwarna (hadir/belum/perwakilan), kolom dibekukan dan bisa difilter. Peserta yang sudah dihapus tetapi pernah check-in ditandai "(peserta sudah dihapus)".
 - **Riwayat check-in**: urut waktu, lengkap dengan cara (QR/manual) dan petugas.
 Tampilan polos: latar putih tanpa warna, status dibedakan lewat huruf tebal/miring. Semua lembar sudah diatur untuk dicetak (A4, lebar muat satu halaman, judul kolom berulang di tiap halaman).
+
+## Peserta berbeda tiap hari (kegiatan 2 hari)
+- Setiap peserta punya kolom **Hari**: `1` (hanya hari ke-1), `2` (hanya hari ke-2), atau kosong (kedua hari, seperti sebelumnya). Pilihannya muncul di form Peserta bila tanggal hari ke-2 diisi.
+- **Import Excel:** tambahkan kolom `Hari` (isi 1 atau 2). Bila kolom itu tidak ada, semua peserta dianggap hadir di kedua hari dan muncul peringatan di halaman Import.
+- **Tiket** menyalin hari milik peserta. Pesan WhatsApp/email dan halaman tiket hanya menyebut hari milik peserta itu. Mengubah hari peserta otomatis memperbarui tiketnya dan mereset status kirim, supaya pesan yang benar bisa dikirim ulang dari menu Distribusi.
+- **Scanner** menolak tiket yang dipindai pada hari yang bukan jadwalnya (pesan: "hanya berlaku untuk hari ke-N"); pencarian manual menandainya "Bukan jadwalnya". Penghitung hadir hanya menghitung peserta hari itu.
+- **Dashboard dan Laporan** menghitung persentase per hari terhadap peserta yang dijadwalkan pada hari itu saja. Di Excel, tanda `-` berarti peserta tidak dijadwalkan pada hari tersebut.
+- Tiket yang dibuat sebelum fitur ini tidak punya hari dan dianggap berlaku di kedua hari. Buka Peserta, Ubah, lalu Simpan untuk menyamakan tiketnya.
+- Pembatasan hari dijaga oleh aplikasi (scanner), bukan oleh `firestore.rules`.

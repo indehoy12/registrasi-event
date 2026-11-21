@@ -7,7 +7,8 @@ export default async (req) => {
   const { idToken, ticketId, pf, sf, maps, base } = data
   const wa = (pf.whatsapp?.stringValue || '').replace(/\D/g, '')
   if (!wa) return json({ error: 'Nomor WhatsApp peserta kosong.' }, 400)
-  const target = wa.startsWith('0') ? '62' + wa.slice(1) : wa
+  const target = (wa.startsWith('620') ? '62' + wa.slice(3) : wa.startsWith('0') ? '62' + wa.slice(1) : wa.startsWith('8') ? '62' + wa : wa)
+  if (!/^628\d{8,11}$/.test(target)) return json({ error: 'Nomor WhatsApp peserta bukan nomor HP yang valid (harus berawalan 628). Perbaiki di menu Peserta.' }, 400)
   const pesan = (adaGambar) => untukWA(isiPesan({ pf, sf, maps, base, ticketId, adaGambar }).teks)
 
   // Coba gambar QR dulu (paket Fonnte Super ke atas); jika ditolak kirim teks + tautan saja.

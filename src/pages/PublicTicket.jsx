@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'; import { useParams } from 'react-router-dom'
-import { doc, getDoc, onSnapshot } from 'firebase/firestore'; import QRCode from 'qrcode'; import { db } from '../firebase'; import { jam, tgl, showCode, normMaps, coordsFromMaps, hariList, hariAktif, hariLabel, usedOn } from '../hooks'; import { Skel } from '../ui'
+import { doc, getDoc, onSnapshot } from 'firebase/firestore'; import QRCode from 'qrcode'; import { db } from '../firebase'; import { jam, tgl, showCode, normMaps, coordsFromMaps, hariList, hariAktif, hariLabel, usedOn, hariPeserta } from '../hooks'; import { Skel } from '../ui'
 
 const wrap = (x, text, max) => { const out = []; let line = ''
   String(text).split(' ').forEach(w => { const t = line ? line + ' ' + w : w; if (x.measureText(t).width > max && line) { out.push(line); line = w } else line = t }); if (line) out.push(line); return out }
@@ -17,12 +17,14 @@ export default function PublicTicket() {
     () => setErr('Tiket tidak dapat dimuat saat ini. Silakan muat ulang halaman atau coba beberapa saat lagi.')), [token])
 
   const kode = showCode(token)
-  const waktu = sem.time ? `Pukul ${sem.time.replace(':', '.')}` : ''
+  const waktu = sem.time ? `Pukul ${sem.time.replace(':', '.')} WIB` : ''
   const peserta = t && [['Nama lengkap', t.participantName], ['Instansi', t.institution], ['Email', t.emailMasked], ['Nomor WhatsApp', t.waMasked], ['Nomor tiket', kode]].filter(r => r[1])
   const peta = normMaps(sem.mapsUrl), pt = peta ? coordsFromMaps(peta) : null
   // Kegiatan 1 atau 2 hari; QR yang sama dipakai di semua hari, kehadiran dicatat per hari
-  const days = hariList(sem), multi = days.length > 1, today = hariAktif(days), usedToday = t ? usedOn(t, today, days) : null
-  const acara = [...(multi ? [['Hari ke-1', tgl(sem.date)], ['Hari ke-2', tgl(sem.date2)]] : [['Hari/Tanggal', tgl(sem.date)]]), ['Waktu', waktu], ['Tempat', sem.location]].filter(r => r[1])
+  // Peserta berbeda tiap hari: tiket hanya menampilkan hari milik peserta itu
+  const days = hariList(sem), dayList = days.filter((_, i) => (t ? hariPeserta(t, days) : [1]).includes(i + 1)), multi = dayList.length > 1, today = hariAktif(dayList), usedToday = t ? usedOn(t, today, days) : null
+  const tglD = (d) => /^\d{4}-/.test(d) ? tgl(d) : ''
+  const acara = [...(multi ? dayList.map(d => [`Hari ke-${days.indexOf(d) + 1}`, tglD(d)]) : [[days.length > 1 ? `Hari ke-${days.indexOf(dayList[0]) + 1}` : 'Hari/Tanggal', tglD(dayList[0])]]), ['Waktu', waktu], ['Tempat', sem.location]].filter(r => r[1])
 
   // Tiket lengkap (nama, data kegiatan, QR) sebagai satu gambar PNG
   const unduh = async () => {
@@ -47,7 +49,7 @@ export default function PublicTicket() {
     {err && <div className="alert alert-danger m-3">{err}</div>}
     {!t && !err && <div className="tk" aria-busy="true" aria-label="Memuat tiket"><div className="tk-head"><Skel w="40%" h=".8rem" className="mb-2"/><Skel w="75%" h="1.6rem"/></div>
       <div className="tk-body"><Skel h="2.6rem" r="10px" className="mb-3"/><div className="text-center mb-3"><Skel w="240px" h="240px" r="12px"/></div><Skel w="90%" className="mb-2"/><Skel w="60%" className="mb-4"/><Skel h="1rem" className="mb-2"/><Skel h="1rem" className="mb-2"/><Skel h="1rem"/></div></div>}
-    {t && usedToday && t.status !== 'dicabut' && <div className="tk-banner" role="status" aria-live="polite"><i className="bi bi-check-circle-fill"/><div><b>Registrasi berhasil. Silakan masuk.</b><small>{multi ? `Hari ke-${days.indexOf(today) + 1} · ` : ''}{usedToday.toDate ? `Tercatat hadir pukul ${jam(usedToday)}` : 'Tercatat hadir'}</small></div></div>}
+    {t && usedToday && t.status !== 'dicabut' && <div className="tk-banner" role="status" aria-live="polite"><i className="bi bi-check-circle-fill"/><div><b>Registrasi berhasil. Silakan masuk.</b><small>{days.length > 1 ? `Hari ke-${days.indexOf(today) + 1} · ` : ''}{usedToday.toDate ? `Tercatat hadir pukul ${jam(usedToday)}` : 'Tercatat hadir'}</small></div></div>}
     {t && <div className="tk">
       <div className="tk-head"><div className="tk-eyebrow">Tiket Masuk Peserta</div><h1>{sem.title || 'Seminar'}</h1></div>
       <div className="tk-body">
@@ -59,7 +61,7 @@ export default function PublicTicket() {
         <p className="tk-hint">Tunjukkan kode QR ini kepada petugas registrasi pada saat kedatangan. Jika QR tidak dapat dipindai, sebutkan <b>Nomor tiket</b> di bawah.</p>
         {t.status === 'aktif' && !usedToday && <div className="tk-bright"><i className="bi bi-brightness-high-fill"/> Naikkan kecerahan layar agar QR mudah dipindai</div>}
         <div className="tk-nomor">Nomor tiket<div className="tk-code fs-3">{kode}</div></div>
-        {multi && <ul className="tk-days" aria-label="Status kehadiran per hari">{days.map(d => { const u = usedOn(t, d, days); return <li key={d} className={u ? 'on' : ''}><i className={`bi bi-${u ? 'check-circle-fill' : 'circle'}`}/><span>{hariLabel(days, d)}{d === today ? ' (hari ini)' : ''}</span><b>{u ? 'Sudah hadir' : 'Belum hadir'}</b></li> })}</ul>}
+        {multi && <ul className="tk-days" aria-label="Status kehadiran per hari">{dayList.map(d => { const u = usedOn(t, d, days); return <li key={d} className={u ? 'on' : ''}><i className={`bi bi-${u ? 'check-circle-fill' : 'circle'}`}/><span>{hariLabel(days, d)}{d === today ? ' (hari ini)' : ''}</span><b>{u ? 'Sudah hadir' : 'Belum hadir'}</b></li> })}</ul>}
 
         <h2>Data peserta</h2>
         <dl className="tk-list">{peserta.map(([k, v]) => <div key={k}><dt>{k}</dt><dd className={k === 'Nomor tiket' ? 'tk-code' : ''}>{v}</dd></div>)}</dl>
