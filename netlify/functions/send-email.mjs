@@ -1,4 +1,4 @@
-// Mengirim tiket lewat email (Gmail SMTP). Isi pesan sama persis dengan WhatsApp; QR dilampirkan sebagai gambar.
+// Mengirim tiket lewat email (Gmail SMTP). Email membawa tiket lengkap (rincian kegiatan + QR sebagai gambar); WhatsApp hanya mengarahkan peserta ke email ini.
 // Environment variable Netlify: GMAIL_USER (alamat Gmail pengirim), GMAIL_APP_PASSWORD (sandi aplikasi 16 karakter), MAIL_FROM_NAME (opsional).
 import nodemailer from 'nodemailer'
 import QRCode from 'qrcode'
@@ -10,7 +10,7 @@ export default async (req) => {
   const to = (pf.email?.stringValue || '').trim()
   if (!/^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(to)) return json({ error: 'Email peserta kosong atau tidak valid.' }, 400)
 
-  const { teks, title } = isiPesan({ pf, sf, maps, base, ticketId, adaGambar: true })
+  const { teks, title, label } = isiPesan({ pf, sf, maps, base, ticketId, adaGambar: true })
   const qr = await QRCode.toBuffer(ticketId, { width: 700, margin: 2 })
   // Bersihkan isian dari spasi, tanda kutip, dan karakter tak terlihat yang sering ikut tersalin.
   const user = process.env.GMAIL_USER.trim().replace(/^["']|["']$/g, '').trim(), dari = process.env.MAIL_FROM_NAME || `Panitia ${title}`
@@ -21,7 +21,7 @@ export default async (req) => {
   try {
     await smtp.sendMail({
       from: { name: dari, address: user }, to, replyTo: user,
-      subject: `Tiket ${title} - ${pf.name?.stringValue || ''}`.trim(),
+      subject: `Tiket ${title}${label ? ' ' + label : ''} - ${pf.name?.stringValue || ''}`.trim(),
       text: untukTeksBiasa(teks), html: untukHtml(teks, { cid: 'qr-tiket' }),
       attachments: [{ filename: 'tiket-qr.png', content: qr, contentType: 'image/png', cid: 'qr-tiket' }],
     })

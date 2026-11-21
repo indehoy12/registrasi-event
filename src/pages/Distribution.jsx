@@ -1,14 +1,18 @@
 import { useDialog, SkelRows, MapsWarn, Skel } from '../ui'
 import { useState } from 'react'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
-import { useColState, useSeminar, wait, sendTicketWA, sendTicketEmail, validEmail, useJagaProses } from '../hooks'; import { auth, db } from '../firebase'
+import { useColState, useSeminar, wait, sendTicketWA, sendTicketEmail, validEmail, useJagaProses, cariCocok } from '../hooks'; import { auth, db } from '../firebase'
+// Pencarian langsung sesuai kolom tabel ini: nama, WhatsApp, email, dan status kirim (terkirim / belum)
+const cocok = (p, t, q) => cariCocok(q, [p.name, p.whatsapp || 'tanpa nomor', p.waAsli, validEmail(p.email || '') ? p.email : 'tanpa email valid',
+  `WhatsApp ${t.sentAt ? 'terkirim' : 'belum'}`, `Email ${t.emailSentAt ? 'terkirim' : 'belum'}`].join(' '))
 export default function Distribution() {
   const ask = useDialog()
   const [ps, lp] = useColState('participants'), [ts, lt] = useColState('tickets'), loading = lp || lt, { loaded: sl, mapsOk } = useSeminar(), by = Object.fromEntries(ts.filter(t => t.status === 'aktif').map(t => [t.participantId, t]))
-  const [state, setState] = useState({}), [busy, setBusy] = useState(false), [info, setInfo] = useState('')
+  const [state, setState] = useState({}), [busy, setBusy] = useState(false), [info, setInfo] = useState(''), [q, setQ] = useState('')
+  const tampil = ps.filter(p => by[p.id] && cocok(p, by[p.id], q.trim()))
   const set = (k, v) => setState(s => ({ ...s, [k]: v })); useJagaProses(busy)
   const wa = async (p, t) => { const k = p.id + 'wa'; set(k, 'Mengirim…')
-    try { const j = await sendTicketWA(t.id); set(k, (j.via === 'fonnte-gambar' ? 'Terkirim (gambar QR)' : `Terkirim (tautan${j.note ? '; gambar ditolak: ' + j.note : ''})`) + (j.warn ? ' - status gagal tersimpan, jangan kirim ulang' : '')); return true } catch (e) { set(k, e.message); return false } }
+    try { const j = await sendTicketWA(t.id); set(k, (j.via === 'fonnte-arahan-email' ? 'Terkirim (arahan ke email)' : j.via === 'fonnte-gambar' ? 'Terkirim (gambar QR)' : `Terkirim (tautan${j.note ? '; gambar ditolak: ' + j.note : ''})`) + (j.warn ? ' - status gagal tersimpan, jangan kirim ulang' : '')); return true } catch (e) { set(k, e.message); return false } }
   const mail = async (p, t) => { const k = p.id + 'em'; set(k, 'Mengirim…')
     try { const j = await sendTicketEmail(t.id); set(k, 'Terkirim' + (j.warn ? ' - status gagal tersimpan, jangan kirim ulang' : '')); return true } catch (e) { set(k, e.message); return false } }
   const todoWa = ps.filter(p => p.whatsapp && by[p.id] && !by[p.id].sentAt), todoEm = ps.filter(p => validEmail(p.email || '') && by[p.id] && !by[p.id].emailSentAt)
@@ -22,15 +26,18 @@ export default function Distribution() {
   return <><div className="d-flex gap-2 mb-3 flex-wrap"><h1 className="h4 me-auto">Distribusi tiket</h1>
     <button className={'btn btn-success btn-sm' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy || !todoWa.length || !mapsOk} onClick={() => bulk('wa')}><i className="bi bi-whatsapp"/>{` WhatsApp yang belum (${todoWa.length})`}</button>
     <button className={'btn btn-primary btn-sm' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy || !todoEm.length || !mapsOk} onClick={() => bulk('em')}><i className="bi bi-envelope"/>{` Email yang belum (${todoEm.length})`}</button></div>
-    <p className="sub">Isi pesan WhatsApp dan email sama. Email membawa QR sebagai lampiran gambar, jadi tetap terbaca walaupun paket WhatsApp tidak mendukung gambar.</p>
+    <p className="sub">Email membawa tiket lengkap (rincian kegiatan dan QR sebagai gambar). WhatsApp hanya memberi tahu peserta untuk membuka tiketnya di email; bila peserta tidak punya email valid, WhatsApp tetap mengirim tiket penuh.</p>
     <MapsWarn loaded={sl} mapsOk={mapsOk}/>
     {info && <div className="alert alert-info">{info}</div>}
+    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 360 }} type="search" autoComplete="off" aria-label="Cari peserta" placeholder="Cari nama" value={q} onChange={e => setQ(e.target.value)}/>
+      {!loading && q.trim() && <span className="small text-muted" role="status" aria-live="polite">{tampil.length} dari {Object.keys(by).length} peserta</span>}</div>
     <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Peserta</th><th>WhatsApp</th><th>Email</th><th className="text-end">Kirim ulang / kirim</th></tr></thead><tbody>
     {loading && <SkelRows rows={6} cols={4}/>}
-    {!loading && ps.filter(p => by[p.id]).map(p => { const t = by[p.id], w = state[p.id + 'wa'], m = state[p.id + 'em'], okEm = validEmail(p.email || ''); return <tr key={p.id}><td>{p.name}</td>
+    {!loading && tampil.map(p => { const t = by[p.id], w = state[p.id + 'wa'], m = state[p.id + 'em'], okEm = validEmail(p.email || ''); return <tr key={p.id}><td>{p.name}</td>
       <td><div className="small text-muted">{p.whatsapp || 'tanpa nomor'}</div><St v={w} sent={t.sentAt}/></td>
       <td><div className="small text-muted">{okEm ? p.email : 'tanpa email valid'}</div><St v={m} sent={t.emailSentAt}/></td>
       <td className="text-end text-nowrap"><button className={'btn btn-success btn-sm me-1' + (w === 'Mengirim…' ? ' is-busy' : '')} disabled={busy || !p.whatsapp || !mapsOk || w === 'Mengirim…'} onClick={() => wa(p, t)}><i className="bi bi-whatsapp"/> {t.sentAt ? 'Ulang' : 'Kirim'}</button>
         <button className={'btn btn-primary btn-sm' + (m === 'Mengirim…' ? ' is-busy' : '')} disabled={busy || !okEm || !mapsOk || m === 'Mengirim…'} onClick={() => mail(p, t)}><i className="bi bi-envelope"/> {t.emailSentAt ? 'Ulang' : 'Kirim'}</button></td></tr> })}
-    {!loading && !ts.length && <tr><td colSpan="4" className="text-center text-muted py-4">Belum ada tiket. Buat tiket dulu di menu Tiket.</td></tr>}</tbody></table></div></>
+    {!loading && !ts.length && <tr><td colSpan="4" className="text-center text-muted py-4">Belum ada tiket. Buat tiket dulu di menu Tiket.</td></tr>}
+    {!loading && ts.length > 0 && !tampil.length && <tr><td colSpan="4" className="text-center text-muted py-4">Tidak ada peserta yang cocok dengan “{q.trim()}”. <button className="btn btn-link btn-sm p-0 align-baseline" onClick={() => setQ('')}>Hapus pencarian</button></td></tr>}</tbody></table></div></>
 }

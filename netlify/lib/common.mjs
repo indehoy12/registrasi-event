@@ -1,5 +1,6 @@
 // Bagian bersama untuk pengiriman tiket lewat WhatsApp dan email: pemeriksaan login, pengambilan data, dan isi pesan.
-// Isi pesan dibuat di satu tempat ini, jadi WhatsApp dan email selalu sama.
+// Isi email dibuat di satu tempat ini (isiPesan). WhatsApp hanya berisi pemberitahuan yang mengarahkan peserta ke emailnya (isiPesanArahEmail);
+// tiket dan QR-nya ada di email.
 const API = process.env.FB_API_KEY, PID = process.env.FB_PROJECT_ID
 export const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'Content-Type': 'application/json' } })
 export const fsr = (p, idToken, init = {}) => fetch(`https://firestore.googleapis.com/v1/projects/${PID}/databases/(default)/documents/${p}`,
@@ -56,17 +57,22 @@ export function isiPesan({ pf, sf, maps, base, ticketId, adaGambar }) {
   // Peserta berbeda tiap hari: kolom hari berisi "1" atau "2" = hanya hari itu; kosong atau "1,2" = kedua hari
   const hs = [...new Set((pf.hari?.stringValue || '').match(/[12]/g) || [])], satu = !!d2 && hs.length === 1, dua = !!d2 && !satu
   const dSatu = satu && hs[0] === '2' ? d2 : d1
+  // Batch: peserta berkolom Hari 1 = Batch 1 (hari ke-1), Hari 2 = Batch 2 (hari ke-2)
+  const batch = satu ? hs[0] : '', label = batch ? `Batch ${batch}` : ''
+  const timeEnd = sf.timeEnd?.stringValue, agenda = sf.agenda?.stringValue
+  const jam = (x) => x.replace(':', '.')
+  const waktu = time ? `pukul ${jam(time)}${timeEnd ? ' - ' + jam(timeEnd) : ''} WIB` : ''
   const link = `${base}/tiket/${ticketId}`
   const c8 = ticketId.replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase(), nomor = c8.slice(0, 4) + ' ' + c8.slice(4)
   const detail = [
     ...(dua ? [d1 && `Hari ke-1 : ${tgl(d1)}`, `Hari ke-2 : ${tgl(d2)}`] : [dSatu && `Hari/Tanggal : ${tgl(dSatu)}`]),
-    time && `Waktu : pukul ${time.replace(':', '.')} WIB`, place && `Tempat : ${place}`].filter(Boolean)
+    waktu && `Waktu : ${waktu}`, place && `Tempat : ${place}`, agenda && `Agenda : ${agenda}`].filter(Boolean)
   const teks = [
     `Yth. Bapak/Ibu ${pf.name?.stringValue || ''},`,
     '',
-    'Dengan hormat, kami mengundang Bapak/Ibu untuk hadir pada kegiatan:',
+    ...(label ? ['Dengan hormat, berdasarkan hasil evaluasi administrasi dan kualifikasi penyedia, kami sampaikan bahwa perusahaan Bapak/Ibu dinyatakan LULUS dan berhak mengikuti tahapan selanjutnya.', '', `Untuk itu kami mengundang Bapak/Ibu hadir pada kegiatan (${B1}${label}${B2}):`] : ['Dengan hormat, kami mengundang Bapak/Ibu untuk hadir pada kegiatan:']),
     '',
-    `${B1}${title}${B2}`,
+    `${B1}${title}${label ? ' - ' + label : ''}${B2}`,
     ...detail,
     '',
     'Titik lokasi (Google Maps):',
@@ -80,7 +86,8 @@ export function isiPesan({ pf, sf, maps, base, ticketId, adaGambar }) {
     '',
     'Apabila kode QR tidak dapat dipindai, petugas dapat mencari data Bapak/Ibu berdasarkan nama.',
     '',
-    dua ? 'Kode QR yang sama dipakai pada kedua hari kegiatan, dan dipindai satu kali setiap hari. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.'
+    label ? `Kode QR ini berlaku pada jadwal ${label} (${tgl(dSatu)}). Kehadiran Bapak/Ibu menjadi salah satu pertimbangan penetapan sebagai Daftar Rekanan Mampu (DRM) PT Kawasan Industri Terpadu Batang. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.`
+      : dua ? 'Kode QR yang sama dipakai pada kedua hari kegiatan, dan dipindai satu kali setiap hari. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.'
        : 'Kode QR ini berlaku untuk satu kali registrasi. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.',
     '',
     'Atas perhatian dan kehadiran Bapak/Ibu, kami ucapkan terima kasih.',
@@ -88,7 +95,36 @@ export function isiPesan({ pf, sf, maps, base, ticketId, adaGambar }) {
     'Hormat kami,',
     `Panitia ${title}`,
   ].join('\n')
-  return { teks, title, link, nomor }
+  return { teks, title, link, nomor, label }
+}
+export const EMAIL_VALID = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/
+// Email disamarkan di WhatsApp (bu***@gmail.com) supaya tidak terbuka penuh bila nomor HP ternyata milik orang lain.
+export const samarkanEmail = (e = '') => { const [u, d] = String(e).trim().split('@'); return `${u.slice(0, u.length > 3 ? 2 : 1)}***@${d}` }
+// Pesan WhatsApp singkat: mengarahkan peserta untuk membuka tiketnya di email.
+export function isiPesanArahEmail({ pf, sf }) {
+  const title = sf.title?.stringValue || 'Seminar', email = samarkanEmail(pf.email?.stringValue || '')
+  const d1 = sf.date?.stringValue, d2 = sf.date2?.stringValue, hs = [...new Set((pf.hari?.stringValue || '').match(/[12]/g) || [])]
+  const batch = d2 && hs.length === 1 ? hs[0] : '', label = batch ? `Batch ${batch}` : '', dB = batch === '2' ? d2 : d1
+  const jam = (x) => x.replace(':', '.'), time = sf.time?.stringValue, timeEnd = sf.timeEnd?.stringValue, place = sf.location?.stringValue
+  const detail = label ? [dB && `Hari/Tanggal : ${tgl(dB)}`, time && `Waktu : pukul ${jam(time)}${timeEnd ? ' - ' + jam(timeEnd) : ''} WIB`, place && `Tempat : ${place}`].filter(Boolean) : []
+  const teks = [
+    `Yth. Bapak/Ibu ${pf.name?.stringValue || ''},`,
+    '',
+    label ? 'Dengan hormat, perusahaan Bapak/Ibu dinyatakan LULUS evaluasi administrasi dan kualifikasi penyedia, dan kami mengundang Bapak/Ibu hadir pada kegiatan:' : 'Dengan hormat, kami mengundang Bapak/Ibu untuk hadir pada kegiatan:',
+    '',
+    `${B1}${title}${label ? ' - ' + label : ''}${B2}`,
+    ...detail,
+    '',
+    `Tiket elektronik (kode QR) beserta rincian kegiatan kami kirimkan melalui email Bapak/Ibu: ${email}`,
+    '',
+    'Mohon periksa kotak masuk. Apabila belum ada, silakan periksa juga folder Spam atau Promosi. Kode QR pada email tersebut ditunjukkan kepada petugas pada saat kedatangan.',
+    '',
+    'Atas perhatian dan kehadiran Bapak/Ibu, kami ucapkan terima kasih.',
+    '',
+    'Hormat kami,',
+    `Panitia ${title}`,
+  ].join('\n')
+  return { teks, title, label }
 }
 export const untukWA = (t) => t.replaceAll(B1, '*').replaceAll(B2, '*')
 export const untukTeksBiasa = (t) => t.replaceAll(B1, '').replaceAll(B2, '')

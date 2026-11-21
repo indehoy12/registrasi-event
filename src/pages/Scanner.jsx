@@ -164,7 +164,7 @@ export default function Scanner() {
           <p className="small text-muted mt-2 mb-0">QR tidak terbaca atau peserta lupa membawa tiket? Pilih tab <b>Input manual</b> lalu cari berdasarkan nama.</p>
         </> : <form className="panel" onSubmit={cari}>
           <label htmlFor="kode" className="form-label fw-semibold">Cari peserta atau nomor tiket</label>
-          <input id="kode" ref={codeRef} type="search" className="form-control form-control-lg" placeholder="Ketik nama atau nomor tiket" value={code} autoComplete="off" autoCapitalize="off" spellCheck="false"
+          <input id="kode" ref={codeRef} type="search" className="form-control form-control-lg" placeholder="Cari nama" value={code} autoComplete="off" autoCapitalize="off" spellCheck="false"
             onChange={e => setCode(e.target.value)}/>
           <div className="form-text">Hasil muncul saat mengetik. Sentuh nama peserta untuk langsung check-in. Huruf besar atau kecil tidak masalah.</div>
           {listErr && <div className="alert alert-danger mt-2 mb-0">Pencarian belum bisa dipakai karena akses data tiket ditolak. Minta Super Admin mem-publish firestore.rules versi terbaru.</div>}

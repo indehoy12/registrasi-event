@@ -17,14 +17,14 @@ export default function PublicTicket() {
     () => setErr('Tiket tidak dapat dimuat saat ini. Silakan muat ulang halaman atau coba beberapa saat lagi.')), [token])
 
   const kode = showCode(token)
-  const waktu = sem.time ? `Pukul ${sem.time.replace(':', '.')} WIB` : ''
+  const waktu = sem.time ? `Pukul ${sem.time.replace(':', '.')}${sem.timeEnd ? ' - ' + sem.timeEnd.replace(':', '.') : ''} WIB` : ''
   const peserta = t && [['Nama lengkap', t.participantName], ['Nama perusahaan', t.institution], ['Bidang perusahaan', t.bidang], ['Email', t.emailMasked], ['Nomor WhatsApp', t.waMasked], ['Nomor tiket', kode]].filter(r => r[1])
   const peta = normMaps(sem.mapsUrl), pt = peta ? coordsFromMaps(peta) : null
   // Kegiatan 1 atau 2 hari; QR yang sama dipakai di semua hari, kehadiran dicatat per hari
   // Peserta berbeda tiap hari: tiket hanya menampilkan hari milik peserta itu
   const days = hariList(sem), dayList = days.filter((_, i) => (t ? hariPeserta(t, days) : [1]).includes(i + 1)), multi = dayList.length > 1, today = hariAktif(dayList), usedToday = t ? usedOn(t, today, days) : null
   const tglD = (d) => /^\d{4}-/.test(d) ? tgl(d) : ''
-  const acara = [...(multi ? dayList.map(d => [`Hari ke-${days.indexOf(d) + 1}`, tglD(d)]) : [[days.length > 1 ? `Hari ke-${days.indexOf(dayList[0]) + 1}` : 'Hari/Tanggal', tglD(dayList[0])]]), ['Waktu', waktu], ['Tempat', sem.location]].filter(r => r[1])
+  const acara = [...(multi ? dayList.map(d => [`Hari ke-${days.indexOf(d) + 1}`, tglD(d)]) : [[days.length > 1 ? `Hari ke-${days.indexOf(dayList[0]) + 1}` : 'Hari/Tanggal', tglD(dayList[0])]]), ['Waktu', waktu], ['Tempat', sem.location], ['Agenda', sem.agenda]].filter(r => r[1])
 
   // Tiket lengkap (nama, data kegiatan, QR) sebagai satu gambar PNG
   const unduh = async () => {

@@ -12,8 +12,8 @@ Pengiriman memakai Netlify Function `netlify/functions/send-wa.mjs`. Isi environ
 
 ## Pengiriman otomatis tiket (Fonnte)
 - Membuat tiket TIDAK otomatis mengirim apa pun. Kotak "Kirim otomatis via WhatsApp" dan "dan email" di menu Tiket tidak tercentang secara default; kirim lewat menu Kirim tiket. Bila sengaja dicentang sebelum klik "Buat tiket", tiket baru langsung dikirim (jeda 3-6 detik per pesan).
-- Pesan berisi nama, judul, tanggal, waktu, tempat, gambar QR (`/qr/<kode>.png`), dan tautan tiket cadangan.
-- Lampiran gambar hanya diterima Fonnte pada paket Super/Advanced/Ultra. Di paket lain, sistem otomatis mengirim pesan teks + tautan tiket.
+- **WhatsApp** hanya mengarahkan peserta ke emailnya (nama, judul kegiatan, email yang disamarkan, dan imbauan memeriksa Spam). Tidak ada QR atau tautan di pesan ini. Kirim email lebih dulu atau bersamaan agar tiketnya sudah ada saat peserta mengeceknya.
+- Peserta **tanpa email valid** tetap menerima pesan WhatsApp penuh (rincian + gambar QR + tautan tiket) sebagai cadangan. Lampiran gambar hanya diterima Fonnte pada paket Super/Advanced/Ultra; di paket lain dikirim teks + tautan tiket.
 - Yang gagal terkirim tetap berstatus "Belum" di menu Distribusi dan bisa dikirim ulang.
 
 ## Titik lokasi (Google Maps)
@@ -30,7 +30,7 @@ Pengiriman memakai Netlify Function `netlify/functions/send-wa.mjs`. Isi environ
 - Data check-in lama tanpa catatan hari dianggap hari ke-1.
 
 ## Email tiket (Gmail)
-Isi email sama dengan pesan WhatsApp; QR dilampirkan sebagai gambar. Dikirim lewat `netlify/functions/send-email.mjs` memakai SMTP Gmail.
+Email membawa tiket lengkap: nama, judul, tanggal, waktu, tempat, titik Google Maps, tautan tiket, dan QR sebagai gambar. Dikirim lewat `netlify/functions/send-email.mjs` memakai SMTP Gmail.
 1. Siapkan satu akun Gmail khusus panitia (bukan akun pribadi).
 2. Aktifkan **Verifikasi 2 langkah** di akun itu, lalu buat **Sandi aplikasi** (myaccount.google.com/apppasswords). Hasilnya 16 karakter.
 3. Di Netlify > Site configuration > Environment variables isi `GMAIL_USER` (alamat Gmail), `GMAIL_APP_PASSWORD` (sandi aplikasi, bukan sandi akun), dan opsional `MAIL_FROM_NAME`.

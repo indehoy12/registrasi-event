@@ -65,6 +65,13 @@ export const ticketCode = (id = '') => String(id).replace(/[^A-Za-z0-9]/g, '').s
 export const showCode = (id) => { const c = ticketCode(id); return c.length === 8 ? c.slice(0, 4) + ' ' + c.slice(4) : c }
 // Penyamaan karakter yang mirip (O/0, I/L/1) agar salah ketik tidak menggagalkan pencarian
 export const normCode = (s = '') => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1')
+// Pencarian langsung per kata: setiap kata yang diketik harus ada di teks yang tampil di halaman itu.
+// Nomor HP: 08... juga cocok dengan data 628...; nomor tiket dicocokkan terpisah (huruf mirip O/0, I/L/1 disamakan) mulai 3 karakter atau bila ada angka,
+// supaya mengetik satu-dua huruf nama tidak memunculkan peserta hanya karena nomor tiketnya.
+export const cariCocok = (q, teks, kode = '') => {
+  const kata = String(q || '').toLowerCase().split(/\s+/).filter(Boolean); if (!kata.length) return true
+  const t = String(teks || '').toLowerCase(), nk = kode ? normCode(kode) : ''
+  return kata.every(k => t.includes(k) || (/^\+?[\d-]{5,}$/.test(k) && t.includes(waNumber(k))) || (nk && (k.length >= 3 || /\d/.test(k)) && normCode(k) && nk.includes(normCode(k)))) }
 // Menerima isi QR, tautan tiket, atau nomor tiket. Mengembalikan { token } (kode panjang) atau { code } (8 karakter) atau { error }.
 export const parseTicketInput = (raw = '') => {
   let s = String(raw).trim(); if (!s) return { error: 'Ketik nomor tiket terlebih dahulu.' }

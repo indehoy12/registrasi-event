@@ -1,7 +1,7 @@
 import { useDialog, Badge, Skel, SkelRows } from '../ui'
 import { useState } from 'react'; import { Link } from 'react-router-dom'
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore'
-import { auth, db } from '../firebase'; import { useColState, useSeminar, tgl, waNumber, validWa, validEmail, maskWa, maskEmail, hariList, hariTeks, normHari } from '../hooks'
+import { auth, db } from '../firebase'; import { useColState, useSeminar, tgl, waNumber, validWa, validEmail, maskWa, maskEmail, hariList, hariTeks, normHari, cariCocok } from '../hooks'
 const empty = { name:'', email:'', whatsapp:'', institution:'', bidang:'', hari:'', status:'terdaftar' }
 // Tiket menyimpan salinan nama, perusahaan, bidang perusahaan, dan kontak (masked) peserta. Setelah data peserta diubah, salinan itu disamakan.
 // Bila WhatsApp/email berganti, status kirim direset agar muncul lagi sebagai "Belum" di menu Distribusi.
@@ -39,7 +39,7 @@ export default function Participants() {
       addDoc(collection(db,'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'hapus peserta', participant: r.name }).catch(() => {})
     } catch (ex) { setErr('Gagal menghapus peserta: ' + (ex.code || '') + ' ' + ex.message) } }
   const exp = async () => { setErr(''); try { const { unduhPeserta } = await import('../excel'); await unduhPeserta({ sem, days, ps: rows.map(r => ({ ...r, whatsapp: r.waAsli || r.whatsapp })), hariTeks, tgl }) } catch (ex) { setErr('Gagal membuat file Excel: ' + (ex.message || ex)) } }
-  const list = rows.filter(r => (r.name+' '+r.email+' '+(r.institution||'')+' '+(r.bidang||'')+' '+r.whatsapp).toLowerCase().includes(q.trim().toLowerCase()))
+  const list = rows.filter(r => cariCocok(q.trim(), [r.name, r.email, r.whatsapp, r.waAsli, r.institution, r.bidang, multi ? hariTeks(r, days) : '', r.status || 'terdaftar'].join(' ')))
   return <><div className="d-flex gap-2 mb-3 flex-wrap"><h1 className="h4 me-auto">Peserta ({loading ? <Skel w="2rem" h="1rem" className="align-middle"/> : rows.length})</h1>
     <Link className="btn btn-outline-primary btn-sm" to="/admin/participants/import">Import Excel</Link>
     <button className="btn btn-outline-secondary btn-sm" disabled={loading} onClick={exp}>Export Excel</button></div>
@@ -50,7 +50,8 @@ export default function Participants() {
           {fe[k] && <div className="invalid-feedback">{fe[k]}</div>}</div>)}
       {multi && <div className="col-md-auto"><select className="form-select" aria-label="Hari kehadiran" value={f.hari || ''} onChange={e => setF({ ...f, hari: e.target.value })}><option value="">Kedua hari</option><option value="1">Hanya hari ke-1</option><option value="2">Hanya hari ke-2</option></select></div>}
       <div className="col-auto d-flex gap-2"><button className="btn btn-primary">{edit ? 'Simpan perubahan' : 'Tambah peserta'}</button>{edit && <button type="button" className="btn btn-outline-secondary" onClick={() => { setEdit(null); setF(empty); setFe({}) }}>Batal</button>}</div></form></div>
-    <input className="form-control mb-2" placeholder="Cari nama, email, perusahaan, bidang, atau nomor WhatsApp (hasil langsung muncul)" type="search" autoComplete="off" value={q} onChange={e=>setQ(e.target.value)}/>
+    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 360 }} aria-label="Cari peserta" placeholder="Cari nama" type="search" autoComplete="off" value={q} onChange={e=>setQ(e.target.value)}/>
+      {!loading && q.trim() && <span className="small text-muted" role="status" aria-live="polite">{list.length} dari {rows.length} peserta</span>}</div>
     <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Nama</th><th>Email</th><th>WhatsApp</th><th>Nama perusahaan</th><th>Bidang perusahaan</th>{multi && <th>Hari</th>}<th>Status</th><th/></tr></thead><tbody>
       {loading && <SkelRows rows={6} cols={multi ? 8 : 7}/>}
       {!loading && list.map(r => <tr key={r.id}><td>{r.name}</td><td>{r.email}</td><td>{r.whatsapp}</td><td>{r.institution}</td><td>{r.bidang}</td>{multi && <td>{hariTeks(r, days)}</td>}<td><Badge s={r.status}/></td>

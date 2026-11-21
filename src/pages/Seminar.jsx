@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'; import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore'; import { db } from '../firebase'; import { normMaps, mapsLink, coordsFromMaps } from '../hooks'; import { Skel } from '../ui'
 const MapPicker = lazy(() => import('../MapPicker'))
 export default function Seminar() {
-  const [f, setF] = useState({ title:'', date:'', time:'', location:'', date2:'', mapsUrl:'', lat:null, lng:null, description:'' }), [msg, setMsg] = useState(null), [ready, setReady] = useState(false), [awal, setAwal] = useState({ date: '', date2: '' })   // tanggal yang tersimpan, untuk mendeteksi perubahan tanggal
+  const [f, setF] = useState({ title:'', date:'', time:'', location:'', date2:'', timeEnd:'', agenda:'', mapsUrl:'', lat:null, lng:null, description:'' }), [msg, setMsg] = useState(null), [ready, setReady] = useState(false), [awal, setAwal] = useState({ date: '', date2: '' })   // tanggal yang tersimpan, untuk mendeteksi perubahan tanggal
   useEffect(() => { getDoc(doc(db,'seminar','main')).then(s => { if (s.exists()) { setF(x => ({ ...x, ...s.data() })); setAwal({ date: s.data().date || '', date2: s.data().date2 || '' }) } }).finally(() => setReady(true)) }, [])
   const maps = normMaps(f.mapsUrl), has = Number.isFinite(f.lat) && Number.isFinite(f.lng)
   // Pin digeser atau peta disentuh: titik dan tautan Maps ikut diperbarui
@@ -26,8 +26,10 @@ export default function Seminar() {
       <div className="s6"><label className="form-label">Judul seminar</label><input className="form-control" value={f.title} onChange={set('title')}/></div>
       <div className="s2"><label className="form-label">Tanggal (hari ke-1)</label><input className="form-control" type="date" value={f.date} onChange={set('date')}/></div>
       <div className="s2"><label className="form-label">Waktu</label><input className="form-control" type="time" value={f.time} onChange={set('time')}/></div>
+      <div className="s2"><label className="form-label">Waktu selesai</label><input className="form-control" type="time" value={f.timeEnd || ''} onChange={set('timeEnd')}/></div>
       <div className="s2"><label className="form-label">Nama tempat</label><input className="form-control" placeholder="Contoh: Aula Gedung A" value={f.location} onChange={set('location')}/></div>
       <div className="s2"><label className="form-label" htmlFor="d2">Tanggal hari ke-2</label><input id="d2" className="form-control" type="date" min={f.date || undefined} value={f.date2 || ''} onChange={set('date2')}/></div>
+      <div className="s6"><label className="form-label">Agenda (tampil di email dan WhatsApp)</label><input className="form-control" placeholder="Contoh: Pembinaan dan Sosialisasi Pengadaan dan e-Procurement" value={f.agenda || ''} onChange={set('agenda')}/></div>
       <div className="s4 align-self-end"><div className="form-text mb-1">Isi bila kegiatan berlangsung 2 hari, kosongkan bila hanya 1 hari. Satu QR dipakai di kedua hari dan dipindai satu kali setiap hari. Jam dan tempat dianggap sama.</div></div>
       <div className="s6"><label className="form-label">Sesuaikan titik lokasi di peta *</label>
         <Suspense fallback={<Skel h="22rem" r="12px"/>}><MapPicker lat={has ? f.lat : NaN} lng={has ? f.lng : NaN} onChange={pick}/></Suspense></div>

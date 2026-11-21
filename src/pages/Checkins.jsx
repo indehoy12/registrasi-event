@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { addDoc, collection, deleteField, doc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { Badge, Empty, useDialog, Skel, SkelRows } from '../ui'
-import { useColState, useSeminar, fmt, showCode, hariList, hariLabel, ckDay } from '../hooks'
+import { useColState, useSeminar, fmt, showCode, hariList, hariLabel, ckDay, cariCocok } from '../hooks'
 
 export default function Checkins({ canEdit }) {
   const ask = useDialog(), [cs, loading] = useColState('checkins', 'checkedInAt')
@@ -10,7 +10,7 @@ export default function Checkins({ canEdit }) {
   const [q, setQ] = useState(''), [f, setF] = useState('semua'), [ed, setEd] = useState(null), [msg, setMsg] = useState('')
   const log = (action, c) => addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action, participant: c.participantName }).catch(() => {})
   const list = cs.filter(c => (hf === 'semua' || ckDay(c, days) === hf) && (f === 'semua' || (f === 'wakil') === !!c.isRepresentative)
-    && (c.participantName + ' ' + (c.representativeName || '') + ' ' + (c.ticketCode || '')).toLowerCase().includes(q.trim().toLowerCase()))
+    && cariCocok(q.trim(), [fmt(c.checkedInAt), multi ? hariLabel(days, ckDay(c, days)) : '', c.participantName, c.isRepresentative ? 'Perwakilan' : 'Peserta', c.representativeName, c.via === 'manual' ? 'Manual' : 'QR', c.officerEmail].join(' '), showCode(c.ticketId)))
 
   const undo = async (c) => {
     if (!await ask({ title: 'Batalkan check-in?', text: `Check-in ${c.participantName} dihapus dan tiketnya bisa dipakai lagi. Gunakan ini jika petugas salah memproses.`, ok: 'Batalkan check-in', danger: true, icon: 'arrow-counterclockwise' })) return
@@ -30,7 +30,8 @@ export default function Checkins({ canEdit }) {
     <h1 className="h4">Riwayat kehadiran ({loading ? <Skel w="2rem" h="1rem" className="align-middle"/> : cs.length})</h1>
     <p className="sub">Daftar semua peserta yang sudah check-in, terbaru di atas.{canEdit ? ' Salah input? Gunakan Ubah atau Batalkan.' : ''}</p>
     {msg && <div className="alert alert-info" role="status">{msg}</div>}
-    <div className="d-flex gap-2 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 320 }} placeholder="Cari nama, perwakilan, atau nomor tiket (langsung muncul)" type="search" autoComplete="off" value={q} onChange={e => setQ(e.target.value)}/>
+    <div className="d-flex gap-2 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 360 }} aria-label="Cari riwayat kehadiran" placeholder="Cari nama" type="search" autoComplete="off" value={q} onChange={e => setQ(e.target.value)}/>
+      {!loading && q.trim() && <span className="small text-muted align-self-center" role="status" aria-live="polite">{list.length} dari {cs.length} data</span>}
       {multi && <div className="d-flex gap-1"><button className={`btn btn-sm ${hf === 'semua' ? 'btn-dark' : 'btn-outline-dark'}`} onClick={() => setHf('semua')}>Semua hari</button>{days.map(d => <button key={d} className={`btn btn-sm ${hf === d ? 'btn-dark' : 'btn-outline-dark'}`} onClick={() => setHf(d)}>{hariLabel(days, d)}</button>)}</div>}
       <div className="d-flex gap-1"><Chip k="semua" l="Semua"/><Chip k="sendiri" l="Peserta sendiri"/><Chip k="wakil" l="Perwakilan"/></div></div>
     <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Waktu</th>{multi && <th>Hari</th>}<th>Peserta</th><th>No. tiket</th><th>Hadir sebagai</th><th>Nama perwakilan</th><th>Cara</th><th>Petugas</th>{canEdit && <th/>}</tr></thead><tbody>
