@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from './firebase'
 import { Skel } from './ui'
+import { useSeminar } from './hooks'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Seminar from './pages/Seminar'
@@ -20,11 +21,13 @@ import PublicTicket from './pages/PublicTicket'
 const AD = ['superadmin','admin'], ALL = ['superadmin','admin','petugas']
 const GROUPS = [
   ['', [['dashboard','Dashboard','speedometer2',AD]]],
-  ['Persiapan', [['seminar','Info seminar','calendar-event',AD],['participants','Peserta','people',AD],['tickets','Tiket QR','ticket-perforated',AD],['distribution','Kirim tiket','whatsapp',AD]]],
+  ['Persiapan', [['seminar','Info acara','calendar-event',AD],['participants','Peserta','people',AD],['tickets','Tiket QR','ticket-perforated',AD],['distribution','Kirim tiket','whatsapp',AD]]],
   ['Hari pelaksanaan', [['scanner','Scan dan check-in','qr-code-scan',ALL],['checkins','Riwayat kehadiran','clock-history',ALL]]],
   ['Kelola', [['reports','Laporan','file-earmark-bar-graph',AD],['settings','Akun dan log','gear',['superadmin']]]],
 ]
 const ROLE = { superadmin: 'Super Admin', admin: 'Panitia', petugas: 'Petugas registrasi' }
+// Nama di pojok kiri mengikuti judul acara yang diisi di Info acara
+const Judul = () => { const { sem } = useSeminar(); return <>{sem.title || 'Registrasi'}</> }
 export default function App() {
   const [open, setOpen] = useState(false), [user, setUser] = useState(undefined), [role, setRole] = useState(null), nav = useNavigate()
   useEffect(() => onAuthStateChanged(auth, async (u) => {
@@ -41,7 +44,7 @@ export default function App() {
       <div className="shell">
         <div className={`backdrop ${open ? 'show' : ''}`} onClick={() => setOpen(false)}/>
         <aside className={`sidebar ${open ? 'open' : ''}`}>
-          <div className="brand"><div className="brand-mark"><i className="bi bi-qr-code-scan"/></div><div><b>Seminar</b><small>Registrasi seminar</small></div></div>
+          <div className="brand"><div className="brand-mark"><i className="bi bi-qr-code-scan"/></div><div><b className="brand-t"><Judul/></b><small>Registrasi peserta</small></div></div>
           <nav className="menu">
             {GROUPS.map(([label, items]) => { const vis = items.filter(i => i[3].includes(role)); return vis.length ? <div key={label}>
               {label && <div className="menu-label">{label}</div>}
@@ -52,7 +55,7 @@ export default function App() {
             <button className="btn btn-outline-secondary btn-sm" title="Keluar" aria-label="Keluar" onClick={async () => { await signOut(auth); nav('/admin/login') }}><i className="bi bi-box-arrow-right"/></button></div>
         </aside>
         <div className="main">
-          <div className="topbar"><button aria-label="Buka menu" onClick={() => setOpen(true)}><i className="bi bi-list"/></button><b>Seminar</b></div>
+          <div className="topbar"><button aria-label="Buka menu" onClick={() => setOpen(true)}><i className="bi bi-list"/></button><b className="brand-t"><Judul/></b></div>
           <main className="content"><Routes>
             <Route path="/admin/login" element={<Navigate to={home}/>}/>
             <Route path="/admin/dashboard" element={P(AD, <Dashboard/>)}/>

@@ -16,14 +16,14 @@ export default function Seminar() {
       if (tercatat.length) return setMsg({ ok: false, t: `Sudah ada check-in pada ${tercatat.map(d => d === 'hari-1' ? 'masa uji coba (sebelum tanggal diisi)' : d).join(', ')} yang tidak ada di jadwal baru, sehingga perubahan tanggal ditolak. Jika itu check-in uji coba, batalkan dulu di menu Riwayat kehadiran.` })
     } catch { return setMsg({ ok: false, t: 'Tidak bisa memeriksa data check-in. Periksa koneksi lalu coba simpan lagi.' }) }
     if (!maps) return setMsg({ ok: false, t: 'Titik lokasi Google Maps wajib diisi dengan tautan Google Maps yang benar atau koordinat (contoh: -6.9175, 107.6191).' })
-    try { await setDoc(doc(db,'seminar','main'), { ...f, mapsUrl: maps, lat: has ? f.lat : null, lng: has ? f.lng : null }); setF({ ...f, mapsUrl: maps }); setAwal({ date: f.date || '', date2: f.date2 || '' }); setMsg({ ok: true, t: 'Informasi seminar disimpan. Titik lokasi akan ikut dikirim lewat WhatsApp dan tampil di halaman tiket.' }) }
+    try { await setDoc(doc(db,'seminar','main'), { ...f, mapsUrl: maps, lat: has ? f.lat : null, lng: has ? f.lng : null }); setF({ ...f, mapsUrl: maps }); setAwal({ date: f.date || '', date2: f.date2 || '' }); setMsg({ ok: true, t: 'Informasi acara disimpan. Titik lokasi akan ikut dikirim lewat WhatsApp dan tampil di halaman tiket.' }) }
     catch { setMsg({ ok: false, t: 'Gagal menyimpan. Periksa koneksi atau hak akses akun Anda.' }) } }
   const set = (k) => (e) => { setF({ ...f, [k]: e.target.value }); setMsg(null) }
-  return <><h1 className="h4">Informasi seminar</h1><p className="sub">Data ini tampil di halaman tiket dan dikirim bersama tiket lewat WhatsApp. Isi lengkap sebelum membuat dan mengirim tiket.</p>
+  return <><h1 className="h4">Informasi acara</h1><p className="sub">Data ini tampil di halaman tiket dan dikirim bersama tiket lewat WhatsApp. Isi lengkap sebelum membuat dan mengirim tiket.</p>
     {msg && <div className={`alert alert-${msg.ok ? 'success' : 'danger'}`} role="status">{msg.t}</div>}
-    {!ready ? <div className="panel" aria-busy="true" aria-label="Memuat informasi seminar"><Skel w="30%" className="mb-2"/><Skel h="2.4rem" r="8px" className="mb-3"/><Skel w="30%" className="mb-2"/><Skel h="2.4rem" r="8px" className="mb-3"/><Skel h="22rem" r="12px"/></div> :
+    {!ready ? <div className="panel" aria-busy="true" aria-label="Memuat informasi acara"><Skel w="30%" className="mb-2"/><Skel h="2.4rem" r="8px" className="mb-3"/><Skel w="30%" className="mb-2"/><Skel h="2.4rem" r="8px" className="mb-3"/><Skel h="22rem" r="12px"/></div> :
     <form onSubmit={save} className="panel fgrid">
-      <div className="s6"><label className="form-label">Judul seminar</label><input className="form-control" value={f.title} onChange={set('title')}/></div>
+      <div className="s6"><label className="form-label">Judul acara</label><input className="form-control" value={f.title} onChange={set('title')}/></div>
       <div className="s2"><label className="form-label">Tanggal (hari ke-1)</label><input className="form-control" type="date" value={f.date} onChange={set('date')}/></div>
       <div className="s2"><label className="form-label">Waktu</label><input className="form-control" type="time" value={f.time} onChange={set('time')}/></div>
       <div className="s2"><label className="form-label">Waktu selesai</label><input className="form-control" type="time" value={f.timeEnd || ''} onChange={set('timeEnd')}/></div>

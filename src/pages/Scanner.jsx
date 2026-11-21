@@ -46,8 +46,8 @@ export default function Scanner() {
   // Satu langkah: tiket valid langsung dicatat hadir (transaksi mencegah dobel check-in dari dua perangkat)
   const checkIn = async (id, via) => {
     try {
-      // Hari check-in disimpan sebagai tanggal. Tanpa tanggal seminar, data akan tersimpan dengan kunci sementara dan tidak cocok lagi setelah tanggal diisi.
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dayRef.current)) throw new Error(semRef.current ? 'Tanggal seminar belum diisi. Minta admin mengisinya di menu Info seminar sebelum check-in dimulai.' : 'Informasi seminar masih dimuat. Coba lagi sebentar.')
+      // Hari check-in disimpan sebagai tanggal. Tanpa tanggal acara, data akan tersimpan dengan kunci sementara dan tidak cocok lagi setelah tanggal diisi.
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dayRef.current)) throw new Error(semRef.current ? 'Tanggal acara belum diisi. Minta admin mengisinya di menu Info seminar sebelum check-in dimulai.' : 'Informasi acara masih dimuat. Coba lagi sebentar.')
       const ref = doc(db, 'tickets', id), cref = doc(collection(db, 'checkins')); let info
       await runTransaction(db, async (tx) => {
         const t = await tx.get(ref)
@@ -153,7 +153,7 @@ export default function Scanner() {
     {multi && <div className="mt-3"><div className="who" style={{ maxWidth: 420 }} role="radiogroup" aria-label="Hari kegiatan">
       {days.map(d => <button type="button" role="radio" aria-checked={d === day} key={d} className={d === day ? 'on' : ''} style={{ minHeight: '3rem', flexDirection: 'row', justifyContent: 'center', gap: '.4rem' }} onClick={() => setPick(d)}><i className="bi bi-calendar-check" style={{ fontSize: '1.1rem' }}/>{hariLabel(days, d)}</button>)}</div>
       {!days.includes(hariKunci()) && <div className="small text-warning-emphasis mt-1"><i className="bi bi-exclamation-triangle-fill"/> Tanggal hari ini tidak sama dengan jadwal kegiatan. Pastikan hari yang dipilih sudah benar.</div>}</div>}
-    {semLoaded && !sem.date && <div className="alert alert-danger mt-3 mb-0" role="alert"><i className="bi bi-exclamation-octagon-fill"/> Tanggal seminar belum diisi, jadi check-in dinonaktifkan. Minta admin mengisinya di menu <b>Info seminar</b>.</div>}
+    {semLoaded && !sem.date && <div className="alert alert-danger mt-3 mb-0" role="alert"><i className="bi bi-exclamation-octagon-fill"/> Tanggal acara belum diisi, jadi check-in dinonaktifkan. Minta admin mengisinya di menu <b>Info seminar</b>.</div>}
     {note && <div className="alert alert-warning mt-3 mb-0" role="status"><i className="bi bi-arrow-counterclockwise"/> {note}</div>}
     <div className="scan mt-3">
       <div>

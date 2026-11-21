@@ -1671,3 +1671,17 @@ h1.h4 {
     padding-right: 1.1rem;
   }
 }
+
+/* Judul acara di sidebar: satu baris, dipotong dengan ... bila panjang */
+.brand > div:last-child {
+  min-width: 0;
+}
+.brand-t {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.topbar .brand-t {
+  flex: 1;
+  min-width: 0;
+}
