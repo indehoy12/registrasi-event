@@ -12,7 +12,7 @@ export async function siapkan(req, perluKonfigurasi = []) {
   if (req.method !== 'POST') return { err: json({ error: 'Metode tidak didukung.' }, 405) }
   if (!API || !PID || perluKonfigurasi.some(k => !process.env[k])) return { err: json({ error: `Konfigurasi server belum lengkap (FB_API_KEY, FB_PROJECT_ID${perluKonfigurasi.length ? ', ' + perluKonfigurasi.join(', ') : ''}).` }, 500) }
   const idToken = (req.headers.get('authorization') || '').replace(/^Bearer /, '')
-  const { ticketId } = await req.json().catch(() => ({}))
+  const body = await req.json().catch(() => ({})), { ticketId } = body
   if (!idToken || !/^[\w-]{16,80}$/.test(ticketId || '')) return { err: json({ error: 'Permintaan tidak valid.' }, 400) }
 
   const lk = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${API}`,
@@ -33,7 +33,7 @@ export async function siapkan(req, perluKonfigurasi = []) {
   const maps = sf.mapsUrl?.stringValue || ''
   if (!/^https:\/\//.test(maps)) return { err: json({ error: 'Titik lokasi Google Maps belum diisi. Isi di menu Informasi seminar sebelum mengirim tiket.' }, 400) }
   const base = (process.env.SITE_URL || process.env.URL || new URL(req.url).origin).replace(/\/$/, '')
-  return { data: { idToken, ticketId, pf, sf, maps, base } }
+  return { data: { idToken, ticketId, pf, sf, maps, base, tiketPenuh: body.tiketPenuh === true } }
 }
 
 // Mencatat status kirim di tiket. Dicoba 2 kali; mengembalikan true/false agar pemanggil tahu bila status gagal tersimpan
@@ -100,6 +100,8 @@ export function isiPesan({ pf, sf, maps, base, ticketId, adaGambar }) {
   ].join('\n')
   return { teks, title, link, nomor, label }
 }
+// Nama pengirim email: MAIL_FROM_NAME di Netlify, atau bawaan ini bila kosong.
+export const namaPengirim = () => (process.env.MAIL_FROM_NAME || '').trim() || 'Panitia Procurement PT KITB 2026'
 export const EMAIL_VALID = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/
 // Email disamarkan di WhatsApp (bu***@gmail.com) supaya tidak terbuka penuh bila nomor HP ternyata milik orang lain.
 export const samarkanEmail = (e = '') => { const [u, d] = String(e).trim().split('@'); return `${u.slice(0, u.length > 3 ? 2 : 1)}***@${d}` }
@@ -111,15 +113,17 @@ export function isiPesanArahEmail({ pf, sf }) {
   const title = label ? bersihBatch(title0) : title0
   const jam = (x) => x.replace(':', '.'), time = sf.time?.stringValue, timeEnd = sf.timeEnd?.stringValue, place = sf.location?.stringValue
   // Pesan WhatsApp sengaja singkat: rincian lengkap dan QR ada di email.
-  // Alamat pengirim email (GMAIL_USER) disebut di WhatsApp supaya peserta tahu email mana yang dicari (termasuk di folder Spam).
-  const pengirim = (process.env.GMAIL_USER || '').trim().replace(/^["']|["']$/g, '').trim(), dari = EMAIL_VALID.test(pengirim) ? pengirim : ''
+  // Yang disebut di WhatsApp adalah NAMA pengirim email (sama dengan MAIL_FROM_NAME), bukan alamat Gmail-nya, supaya peserta tahu email mana yang dicari (termasuk di folder Spam).
+  const dari = namaPengirim()
   const kapan = label ? [dB && tgl(dB), time && `pukul ${jam(time)}${timeEnd ? ' - ' + jam(timeEnd) : ''} WIB`, place].filter(Boolean).join(', ') : ''
   const teks = [
     `Yth. Bapak/Ibu ${pf.name?.stringValue || ''},`,
     '',
     `Bapak/Ibu kami undang pada ${B1}${title}${label ? ' - ' + label : ''}${B2}${kapan ? ': ' + kapan : ''}.`,
     '',
-    `Tiket QR dan rincian lengkap sudah kami kirim ke email ${email}${dari ? ` dari ${dari}` : ''}. Mohon cek kotak masuk atau folder Spam.`,
+    `Tiket QR dan rincian lengkap sudah kami kirim ke email ${email} dari ${dari}. Mohon cek kotak masuk atau folder Spam.`,
+    '',
+    `Mohon balas pesan ini dengan ${B1}Hadir${B2} sebagai konfirmasi bahwa Bapak/Ibu sudah menerima undangan ini.`,
     '',
     `Terima kasih. Panitia ${title}`,
   ].join('\n')
@@ -129,10 +133,12 @@ export const untukWA = (t) => t.replaceAll(B1, '*').replaceAll(B2, '*')
 export const untukTeksBiasa = (t) => t.replaceAll(B1, '').replaceAll(B2, '')
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 // Versi HTML sederhana (QR di atas, lalu isi pesan yang sama). Tautan dibuat bisa diklik.
-export function untukHtml(t, { cid } = {}) {
+export function untukHtml(t, { cid, cidPeta, maps } = {}) {
   const body = t.split('\n\n').map(par => '<p style="margin:0 0 14px">' + esc(par).replace(/\n/g, '<br>')
     .replace(/https:\/\/[^\s<]+/g, u => `<a href="${u}" style="color:#0f766e">${u}</a>`)
-    .replaceAll(B1, '<b>').replaceAll(B2, '</b>') + '</p>').join('')
+    .replaceAll(B1, '<b>').replaceAll(B2, '</b>') + '</p>'
+    // Gambar peta tepat di bawah paragraf yang memuat tautan Google Maps; diketuk = buka Google Maps.
+    + (cidPeta && maps && par.includes(maps) ? `<p style="margin:0 0 14px"><a href="${maps}"><img src="cid:${cidPeta}" width="520" alt="Peta lokasi acara" style="width:100%;max-width:520px;height:auto;border:1px solid #e4e7ec;border-radius:12px"></a><br><span style="font-size:12px;color:#667085">Peta &copy; kontributor OpenStreetMap. Ketuk peta untuk membuka Google Maps.</span></p>` : '')).join('')
   return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#18212f;max-width:560px">`
     + (cid ? `<p style="text-align:center;margin:0 0 16px"><img src="cid:${cid}" width="260" height="260" alt="Kode QR tiket" style="border:1px solid #e4e7ec;border-radius:12px"></p>` : '') + body + '</div>'
 }

@@ -11,8 +11,10 @@ export default function Distribution() {
   const [state, setState] = useState({}), [busy, setBusy] = useState(false), [info, setInfo] = useState(''), [q, setQ] = useState(''), [grup, setGrup] = useState(''), [ukuran, setUkuran] = useState('10'), [jeda, setJeda] = useState('3'), [jedaEmail, setJedaEmail] = useState('20')
   const tampil = ps.filter(p => by[p.id] && cocok(p, by[p.id], q.trim()))
   const set = (k, v) => setState(s => ({ ...s, [k]: v })); useJagaProses(busy); const stop = useRef(false)
-  const wa = async (p, t) => { const k = p.id + 'wa'; set(k, 'Mengirim…')
-    try { const j = await sendTicketWA(t.id); set(k, (j.via === 'fonnte-arahan-email' ? 'Terkirim (arahan ke email)' : j.via === 'fonnte-gambar' ? 'Terkirim (gambar QR)' : `Terkirim (tautan${j.note ? '; gambar ditolak: ' + j.note : ''})`) + (j.warn ? ' - status gagal tersimpan, jangan kirim ulang' : '')); return true } catch (e) { set(k, e.message); return false } }
+  const wa = async (p, t, penuh = false) => { const k = p.id + 'wa'; set(k, 'Mengirim…')
+    try { const j = await sendTicketWA(t.id, penuh === true); set(k, (j.via === 'fonnte-arahan-email' ? 'Terkirim (arahan ke email)' : j.via === 'fonnte-gambar' ? 'Terkirim (gambar QR)' : `Terkirim (tautan${j.note ? '; gambar ditolak: ' + j.note : ''})`) + (j.warn ? ' - status gagal tersimpan, jangan kirim ulang' : '')); return true } catch (e) { set(k, e.message); return false } }
+  // Tiket penuh lewat WhatsApp untuk satu peserta (misalnya emailnya bounce atau masuk Spam). Tidak dipakai oleh pengiriman massal.
+  const waPenuh = async (p, t) => { if (await ask({ title: 'Kirim tiket penuh lewat WhatsApp?', text: `${p.name} akan menerima rincian acara, kode QR (atau tautan tiket) langsung di WhatsApp, bukan hanya arahan ke email. Dipakai untuk peserta yang emailnya bermasalah.`, ok: 'Kirim tiket', icon: 'whatsapp' })) await wa(p, t, true) }
   const mail = async (p, t) => { const k = p.id + 'em'; set(k, 'Mengirim…')
     try { const j = await sendTicketEmail(t.id); set(k, 'Terkirim' + (j.warn ? ' - status gagal tersimpan, jangan kirim ulang' : '')); return true } catch (e) { set(k, e.message); return false } }
   // Pengiriman massal bisa dipersempit per batch dan dikirim bertahap (per kelompok dengan jeda), supaya lebih kecil kemungkinan masuk Spam.
@@ -39,7 +41,7 @@ export default function Distribution() {
       <input id="kirim-jeda-email" aria-label="Jeda antar email (detik)" className="form-control form-control-sm" style={{ width: 70 }} type="number" min="0" inputMode="numeric" value={jedaEmail} disabled={busy} onChange={e => setJedaEmail(e.target.value)}/><span className="text-muted">detik antar email</span>
       {busy && <button className="btn btn-outline-danger btn-sm ms-2" onClick={() => { stop.current = true }}>Hentikan</button>}</div>
     <p className="small text-muted mb-2">Tombol di atas hanya mengirim yang belum terkirim, sesuai pilihan ini. Kosongkan "Per kelompok" untuk tanpa jeda antar kelompok. Jeda antar email berlaku hanya untuk email dan diacak sedikit agar tidak terlalu seragam.</p>
-    <p className="sub">Email membawa tiket lengkap (rincian kegiatan dan QR sebagai gambar). WhatsApp hanya memberi tahu peserta untuk membuka tiketnya di email; bila peserta tidak punya email valid, WhatsApp tetap mengirim tiket penuh.</p>
+    <p className="sub">Email membawa tiket lengkap (rincian kegiatan dan QR sebagai gambar). WhatsApp hanya memberi tahu peserta untuk membuka tiketnya di email; bila peserta tidak punya email valid, WhatsApp tetap mengirim tiket penuh. Untuk peserta yang emailnya bermasalah, tombol "Tiket" di barisnya mengirim tiket penuh lewat WhatsApp. WhatsApp arahan juga meminta peserta membalas "Hadir" sebagai konfirmasi.</p>
     <MapsWarn loaded={sl} mapsOk={mapsOk}/>
     {info && <div className="alert alert-info">{info}</div>}
     <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 360 }} type="search" autoComplete="off" aria-label="Cari peserta" placeholder="Cari nama" value={q} onChange={e => setQ(e.target.value)}/>
@@ -50,6 +52,7 @@ export default function Distribution() {
       <td><div className="small text-muted">{p.whatsapp || 'tanpa nomor'}</div><St v={w} sent={t.sentAt}/></td>
       <td><div className="small text-muted">{okEm ? p.email : 'tanpa email valid'}</div><St v={m} sent={t.emailSentAt}/></td>
       <td className="text-end text-nowrap"><button className={'btn btn-success btn-sm me-1' + (w === 'Mengirim…' ? ' is-busy' : '')} disabled={busy || !p.whatsapp || !mapsOk || w === 'Mengirim…'} onClick={() => wa(p, t)}><i className="bi bi-whatsapp"/> {t.sentAt ? 'Ulang' : 'Kirim'}</button>
+        <button className="btn btn-outline-success btn-sm me-1" title="Kirim tiket penuh (QR/tautan) lewat WhatsApp, untuk peserta yang emailnya bermasalah" aria-label={`Kirim tiket penuh lewat WhatsApp ke ${p.name}`} disabled={busy || !p.whatsapp || !mapsOk || w === 'Mengirim…'} onClick={() => waPenuh(p, t)}><i className="bi bi-ticket-perforated"/> Tiket</button>
         <button className={'btn btn-primary btn-sm' + (m === 'Mengirim…' ? ' is-busy' : '')} disabled={busy || !okEm || !mapsOk || m === 'Mengirim…'} onClick={() => mail(p, t)}><i className="bi bi-envelope"/> {t.emailSentAt ? 'Ulang' : 'Kirim'}</button></td></tr> })}
     {!loading && !ts.length && <tr><td colSpan="4" className="text-center text-muted py-4">Belum ada tiket. Buat tiket dulu di menu Tiket.</td></tr>}
     {!loading && ts.length > 0 && !tampil.length && <tr><td colSpan="4" className="text-center text-muted py-4">Tidak ada peserta yang cocok dengan “{q.trim()}”. <button className="btn btn-link btn-sm p-0 align-baseline" onClick={() => setQ('')}>Hapus pencarian</button></td></tr>}</tbody></table></div></>

@@ -69,8 +69,8 @@ export default function PublicTicket() {
         <details className="tk-fold" open><summary>Informasi kegiatan</summary>
         {!semReady && <div aria-busy="true" aria-label="Memuat informasi kegiatan"><Skel h="1rem" className="mb-2"/><Skel w="80%" h="1rem" className="mb-2"/><Skel w="60%" h="1rem"/></div>}
         <dl className="tk-list">{acara.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
-        {pt && <iframe className="map-prev" title="Peta lokasi acara" loading="lazy" referrerPolicy="no-referrer-when-downgrade"
-          src={`https://www.openstreetmap.org/export/embed.html?bbox=${pt.lng - .004}%2C${pt.lat - .0025}%2C${pt.lng + .004}%2C${pt.lat + .0025}&layer=mapnik&marker=${pt.lat}%2C${pt.lng}`}/>}
+        {pt && <a href={peta} target="_blank" rel="noopener noreferrer" aria-label="Buka lokasi di Google Maps"><img className="map-prev" style={{ height: 'auto', aspectRatio: '2 / 1', objectFit: 'cover' }} src={`/peta/${pt.lat},${pt.lng}.png`} alt="Peta lokasi acara" loading="lazy"/></a>}
+        {pt && <p className="small text-muted mb-2">Peta &copy; kontributor OpenStreetMap. Ketuk peta untuk membuka Google Maps.</p>}
         {peta && <a className="btn btn-outline-primary w-100 mb-2" href={peta} target="_blank" rel="noopener noreferrer"><i className="bi bi-geo-alt-fill"/> Buka lokasi di Google Maps</a>}
         {sem.description && <p className="tk-desc">{sem.description}</p>}</details>
 

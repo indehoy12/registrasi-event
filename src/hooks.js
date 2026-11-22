@@ -31,9 +31,9 @@ export function useJagaProses(aktif) {
   }, [aktif])
 }
 // Memicu pengiriman tiket lewat Netlify Function; mengembalikan { via: 'fonnte-gambar' | 'fonnte', note }
-export async function sendTicketWA(ticketId) {
+export async function sendTicketWA(ticketId, tiketPenuh = false) {
   const r = await fetch('/.netlify/functions/send-wa', { method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser.getIdToken()}` }, body: JSON.stringify({ ticketId }) })
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser.getIdToken()}` }, body: JSON.stringify({ ticketId, ...(tiketPenuh ? { tiketPenuh: true } : {}) }) })
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Gagal mengirim.'); return j
 }
 // Kegiatan 1 atau 2 hari: setiap hari punya kunci tanggal (YYYY-MM-DD). QR yang sama dipakai di semua hari, check-in dicatat per hari.
