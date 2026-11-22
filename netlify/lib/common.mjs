@@ -48,17 +48,20 @@ export async function tandaiTiket(idToken, ticketId, fields) {
 export const PERINGATAN_STATUS = 'Pesan sudah terkirim, tetapi status "terkirim" gagal tersimpan. Jangan kirim ulang; cek langsung ke peserta bila ragu.'
 
 const B1 = '\u0001', B2 = '\u0002'   // penanda teks tebal: WhatsApp = *teks*, email = <b>teks</b>
+// Bila label batch otomatis ditambahkan, buang kata "Batch N" yang sudah ada di judul supaya tidak dobel ("... Batch 2 - Batch 2").
+const bersihBatch = (t) => t.replace(/\s*[-\u2013\u2014(:]?\s*\bbatch\s*\d+\s*\)?/gi, '').replace(/\s{2,}/g, ' ').replace(/[\s\-\u2013\u2014:]+$/, '').trim() || t
 const tgl = (s) => new Date(s + 'T00:00:00Z').toLocaleDateString('id-ID', { dateStyle: 'full', timeZone: 'UTC' })
 
 // Isi pesan (sama untuk WhatsApp dan email). Mengembalikan teks dengan penanda tebal.
 export function isiPesan({ pf, sf, maps, base, ticketId, adaGambar }) {
-  const title = sf.title?.stringValue || 'Seminar', time = sf.time?.stringValue, place = sf.location?.stringValue
+  const title0 = sf.title?.stringValue || 'Seminar', time = sf.time?.stringValue, place = sf.location?.stringValue
   const d1 = sf.date?.stringValue, d2 = sf.date2?.stringValue
   // Peserta berbeda tiap hari: kolom hari berisi "1" atau "2" = hanya hari itu; kosong atau "1,2" = kedua hari
   const hs = [...new Set((pf.hari?.stringValue || '').match(/[12]/g) || [])], satu = !!d2 && hs.length === 1, dua = !!d2 && !satu
   const dSatu = satu && hs[0] === '2' ? d2 : d1
   // Batch: peserta berkolom Hari 1 = Batch 1 (hari ke-1), Hari 2 = Batch 2 (hari ke-2)
   const batch = satu ? hs[0] : '', label = batch ? `Batch ${batch}` : ''
+  const title = label ? bersihBatch(title0) : title0
   const timeEnd = sf.timeEnd?.stringValue, agenda = sf.agenda?.stringValue
   const jam = (x) => x.replace(':', '.')
   const waktu = time ? `pukul ${jam(time)}${timeEnd ? ' - ' + jam(timeEnd) : ''} WIB` : ''
@@ -102,27 +105,23 @@ export const EMAIL_VALID = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/
 export const samarkanEmail = (e = '') => { const [u, d] = String(e).trim().split('@'); return `${u.slice(0, u.length > 3 ? 2 : 1)}***@${d}` }
 // Pesan WhatsApp singkat: mengarahkan peserta untuk membuka tiketnya di email.
 export function isiPesanArahEmail({ pf, sf }) {
-  const title = sf.title?.stringValue || 'Seminar', email = samarkanEmail(pf.email?.stringValue || '')
+  const title0 = sf.title?.stringValue || 'Seminar', email = samarkanEmail(pf.email?.stringValue || '')
   const d1 = sf.date?.stringValue, d2 = sf.date2?.stringValue, hs = [...new Set((pf.hari?.stringValue || '').match(/[12]/g) || [])]
   const batch = d2 && hs.length === 1 ? hs[0] : '', label = batch ? `Batch ${batch}` : '', dB = batch === '2' ? d2 : d1
+  const title = label ? bersihBatch(title0) : title0
   const jam = (x) => x.replace(':', '.'), time = sf.time?.stringValue, timeEnd = sf.timeEnd?.stringValue, place = sf.location?.stringValue
-  const detail = label ? [dB && `Hari/Tanggal : ${tgl(dB)}`, time && `Waktu : pukul ${jam(time)}${timeEnd ? ' - ' + jam(timeEnd) : ''} WIB`, place && `Tempat : ${place}`].filter(Boolean) : []
+  // Pesan WhatsApp sengaja singkat: rincian lengkap dan QR ada di email.
+  // Alamat pengirim email (GMAIL_USER) disebut di WhatsApp supaya peserta tahu email mana yang dicari (termasuk di folder Spam).
+  const pengirim = (process.env.GMAIL_USER || '').trim().replace(/^["']|["']$/g, '').trim(), dari = EMAIL_VALID.test(pengirim) ? pengirim : ''
+  const kapan = label ? [dB && tgl(dB), time && `pukul ${jam(time)}${timeEnd ? ' - ' + jam(timeEnd) : ''} WIB`, place].filter(Boolean).join(', ') : ''
   const teks = [
     `Yth. Bapak/Ibu ${pf.name?.stringValue || ''},`,
     '',
-    label ? 'Dengan hormat, perusahaan Bapak/Ibu dinyatakan LULUS evaluasi administrasi dan kualifikasi penyedia, dan kami mengundang Bapak/Ibu hadir pada kegiatan:' : 'Dengan hormat, kami mengundang Bapak/Ibu untuk hadir pada kegiatan:',
+    `Bapak/Ibu kami undang pada ${B1}${title}${label ? ' - ' + label : ''}${B2}${kapan ? ': ' + kapan : ''}.`,
     '',
-    `${B1}${title}${label ? ' - ' + label : ''}${B2}`,
-    ...detail,
+    `Tiket QR dan rincian lengkap sudah kami kirim ke email ${email}${dari ? ` dari ${dari}` : ''}. Mohon cek kotak masuk atau folder Spam.`,
     '',
-    `Tiket elektronik (kode QR) beserta rincian kegiatan kami kirimkan melalui email Bapak/Ibu: ${email}`,
-    '',
-    'Mohon periksa kotak masuk. Apabila belum ada, silakan periksa juga folder Spam atau Promosi. Kode QR pada email tersebut ditunjukkan kepada petugas pada saat kedatangan.',
-    '',
-    'Atas perhatian dan kehadiran Bapak/Ibu, kami ucapkan terima kasih.',
-    '',
-    'Hormat kami,',
-    `Panitia ${title}`,
+    `Terima kasih. Panitia ${title}`,
   ].join('\n')
   return { teks, title, label }
 }
