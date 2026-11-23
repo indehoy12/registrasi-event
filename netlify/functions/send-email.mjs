@@ -24,7 +24,7 @@ export default async (req) => {
   try {
     await smtp.sendMail({
       from: { name: dari, address: user }, to, replyTo: user,
-      subject: `Tiket ${title}${label ? ' ' + label : ''} - ${pf.name?.stringValue || ''}`.trim(),
+      subject: `Tiket ${title}${label ? ' ' + label : ''} - ${pf.institution?.stringValue || pf.name?.stringValue || ''}`.trim(),
       text: untukTeksBiasa(teks), html: untukHtml(teks, { cid: 'qr-tiket', petaCid: peta ? 'peta-lokasi' : '', maps }),
       attachments: [{ filename: 'tiket-qr.png', content: qr, contentType: 'image/png', cid: 'qr-tiket' },
         ...(peta ? [{ filename: 'peta-lokasi.png', content: peta, contentType: 'image/png', cid: 'peta-lokasi', contentDisposition: 'inline' }] : [])],

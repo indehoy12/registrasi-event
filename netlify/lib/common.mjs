@@ -50,6 +50,12 @@ export const PERINGATAN_STATUS = 'Pesan sudah terkirim, tetapi status "terkirim"
 const B1 = '\u0001', B2 = '\u0002'   // penanda teks tebal: WhatsApp = *teks*, email = <b>teks</b>
 // Bila label batch otomatis ditambahkan, buang kata "Batch N" yang sudah ada di judul supaya tidak dobel ("... Batch 2 - Batch 2").
 const bersihBatch = (t) => t.replace(/\s*[-\u2013\u2014(:]?\s*\bbatch\s*\d+\s*\)?/gi, '').replace(/\s{2,}/g, ' ').replace(/[\s\-\u2013\u2014:]+$/, '').trim() || t
+// Sapaan: nama perusahaan diutamakan (tebal), lalu nama pimpinan, lalu "u.p." nama PIC/Admin. Tanpa nama perusahaan, kembali ke sapaan lama dengan nama PIC.
+const sapaan = (pf) => {
+  const usaha = (pf.institution?.stringValue || '').trim(), pimpinan = (pf.pimpinan?.stringValue || '').trim(), pic = (pf.name?.stringValue || '').trim()
+  if (!usaha) return [`Yth. Bapak/Ibu ${pic},`]
+  return ['Yth. Bapak/Ibu Pimpinan', `${B1}${usaha}${B2}`, ...(pimpinan ? [pimpinan] : []), ...(pic ? [`u.p. ${pic} (PIC/Admin)`] : [])]
+}
 const tgl = (s) => new Date(s + 'T00:00:00Z').toLocaleDateString('id-ID', { dateStyle: 'full', timeZone: 'UTC' })
 
 // Isi pesan (sama untuk WhatsApp dan email). Mengembalikan teks dengan penanda tebal.
@@ -71,7 +77,7 @@ export function isiPesan({ pf, sf, maps, base, ticketId, adaGambar }) {
     ...(dua ? [d1 && `Hari ke-1 : ${tgl(d1)}`, `Hari ke-2 : ${tgl(d2)}`] : [dSatu && `Hari/Tanggal : ${tgl(dSatu)}`]),
     waktu && `Waktu : ${waktu}`, place && `Tempat : ${place}`, agenda && `Agenda : ${agenda}`].filter(Boolean)
   const teks = [
-    `Yth. Bapak/Ibu ${pf.name?.stringValue || ''},`,
+    ...sapaan(pf),
     '',
     ...(label ? ['Dengan hormat, berdasarkan hasil evaluasi administrasi dan kualifikasi penyedia, kami sampaikan bahwa perusahaan Bapak/Ibu dinyatakan LULUS dan berhak mengikuti tahapan selanjutnya.', '', `Untuk itu kami mengundang Bapak/Ibu hadir pada kegiatan (${B1}${label}${B2}):`] : ['Dengan hormat, kami mengundang Bapak/Ibu untuk hadir pada kegiatan:']),
     '',
@@ -87,7 +93,7 @@ export function isiPesan({ pf, sf, maps, base, ticketId, adaGambar }) {
     ...(adaGambar ? ['', 'Apabila kode QR tidak tampil, tiket dapat dibuka melalui tautan berikut:'] : []),
     link,
     '',
-    'Apabila kode QR tidak dapat dipindai, petugas dapat mencari data Bapak/Ibu berdasarkan nama.',
+    'Apabila kode QR tidak dapat dipindai, petugas dapat mencari data Bapak/Ibu berdasarkan nama perusahaan atau nama PIC.',
     '',
     label ? `Kode QR ini berlaku pada jadwal ${label} (${tgl(dSatu)}). Kehadiran Bapak/Ibu menjadi salah satu pertimbangan penetapan sebagai Daftar Rekanan Mampu (DRM) PT Kawasan Industri Terpadu Batang. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.`
       : dua ? 'Kode QR yang sama dipakai pada kedua hari kegiatan, dan dipindai satu kali setiap hari. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.'
@@ -117,7 +123,7 @@ export function isiPesanArahEmail({ pf, sf, base, ticketId }) {
   const dari = namaPengirim()
   const kapan = label ? [dB && tgl(dB), time && `pukul ${jam(time)}${timeEnd ? ' - ' + jam(timeEnd) : ''} WIB`, place].filter(Boolean).join(', ') : ''
   const teks = [
-    `Yth. Bapak/Ibu ${pf.name?.stringValue || ''},`,
+    ...sapaan(pf),
     '',
     `Bapak/Ibu kami undang pada ${B1}${title}${label ? ' - ' + label : ''}${B2}${kapan ? ': ' + kapan : ''}.`,
     '',
