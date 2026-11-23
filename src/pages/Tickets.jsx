@@ -7,7 +7,7 @@ const save = (href, name) => { const a = document.createElement('a'); a.href = h
 // Pencarian langsung sesuai kolom tabel ini (nama, nomor tiket, status tiket); nomor tiket ikut dicari mulai 3 karakter (atau bila ada angka)
 // agar mengetik satu-dua huruf nama tidak memunculkan peserta yang namanya tidak cocok hanya karena nomor tiketnya.
 const STATUS = { aktif: 'Aktif', terpakai: 'Terpakai', dicabut: 'Dicabut' }
-const cocok = (p, t, q) => cariCocok(q, `${p.name || ''} ${p.email || ''} ${p.institution || ''} ${p.bidang || ''} ${t ? STATUS[t.status] || t.status : 'Belum dibuat'}`, t ? showCode(t.id) : '')
+const cocok = (p, t, q) => cariCocok(q, `${p.name || ''} ${p.email || ''} ${p.institution || ''} ${p.pimpinan || ''} ${p.domisili || ''} ${p.wilayah || ''} ${p.bidang || ''} ${t ? STATUS[t.status] || t.status : 'Belum dibuat'}`, t ? showCode(t.id) : '')
 
 // Popup QR: tampil langsung saat tombol "Lihat QR" ditekan; Esc atau klik di luar kotak untuk menutup
 function QrModal({ t, onClose, onPng }) {
@@ -39,7 +39,7 @@ export default function Tickets() {
   const gen = async (list) => { setBusy(true); setMsg('')
     try { const made = list.map(p => ({ p, id: newToken() }))
       for (let i = 0; i < made.length; i += 400) { const b = writeBatch(db)
-        made.slice(i, i + 400).forEach(({ p, id }) => b.set(doc(db, 'tickets', id), { participantId: p.id, participantName: p.name, institution: p.institution || '', bidang: p.bidang || '', hari: normHari(p.hari), emailMasked: maskEmail(p.email), waMasked: maskWa(p.whatsapp), status: 'aktif', createdAt: serverTimestamp(), sentAt: null })); await b.commit() }
+        made.slice(i, i + 400).forEach(({ p, id }) => b.set(doc(db, 'tickets', id), { participantId: p.id, participantName: p.name, institution: p.institution || '', pimpinan: p.pimpinan || '', domisili: p.domisili || '', wilayah: p.wilayah || '', bidang: p.bidang || '', hari: normHari(p.hari), emailMasked: maskEmail(p.email), waMasked: maskWa(p.whatsapp), status: 'aktif', createdAt: serverTimestamp(), sentAt: null })); await b.commit() }
       await addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'buat tiket', count: list.length })
       let info = `${list.length} tiket dibuat.`; setMsg(info)
       // Bila keduanya dicentang: email dikirim lebih dulu, lalu WhatsApp.

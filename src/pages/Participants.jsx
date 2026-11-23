@@ -2,13 +2,13 @@ import { useDialog, Badge, Skel, SkelRows } from '../ui'
 import { useEffect, useMemo, useRef, useState } from 'react'; import { Link } from 'react-router-dom'
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore'
 import { auth, db } from '../firebase'; import { useColState, useSeminar, tgl, waNumber, validWa, validEmail, maskWa, maskEmail, hariList, hariTeks, normHari, cariCocok, hariPeserta, ckDay, urutNama } from '../hooks'
-const empty = { name:'', email:'', whatsapp:'', institution:'', bidang:'', hari:'', status:'terdaftar' }
+const empty = { name:'', email:'', whatsapp:'', institution:'', pimpinan:'', domisili:'', wilayah:'', bidang:'', hari:'', status:'terdaftar' }
 // Tiket menyimpan salinan nama, perusahaan, bidang perusahaan, dan kontak (masked) peserta. Setelah data peserta diubah, salinan itu disamakan.
 // Bila WhatsApp/email berganti, status kirim direset agar muncul lagi sebagai "Belum" di menu Distribusi.
 async function syncTiket(id, d, lama) {
   const s = await getDocs(query(collection(db, 'tickets'), where('participantId', '==', id))); if (s.empty) return
   const b = writeBatch(db)
-  s.docs.forEach(t => { const x = { participantName: d.name, institution: d.institution || '', bidang: d.bidang || '', emailMasked: maskEmail(d.email), waMasked: maskWa(d.whatsapp), hari: normHari(d.hari) }
+  s.docs.forEach(t => { const x = { participantName: d.name, institution: d.institution || '', pimpinan: d.pimpinan || '', domisili: d.domisili || '', wilayah: d.wilayah || '', bidang: d.bidang || '', emailMasked: maskEmail(d.email), waMasked: maskWa(d.whatsapp), hari: normHari(d.hari) }
     if (lama && normHari(lama.hari) !== normHari(d.hari)) { x.sentAt = null; x.sentVia = null; x.emailSentAt = null }   // hari berubah: isi pesan lama sudah tidak sesuai, kirim ulang
     if (lama && waNumber(lama.whatsapp) !== d.whatsapp) { x.sentAt = null; x.sentVia = null }
     if (lama && (lama.email || '') !== d.email) x.emailSentAt = null
@@ -25,14 +25,14 @@ export default function Participants() {
   const [raw, loading] = useColState('participants'), [cs] = useColState('checkins'), rows = useMemo(() => [...raw].sort(urutNama), [raw]), [f, setF] = useState(empty), [q, setQ] = useState(''), [edit, setEdit] = useState(null), [err, setErr] = useState(''), [fe, setFe] = useState({})
   const [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [ok, setOk] = useState(''), nameRef = useRef(null)
   const bukaTambah = () => { setEdit(null); setErr(''); setOk(''); setFe({}); setF({ ...empty, hari: multi ? '?' : '' }); setOpen(true) }   // hari '?' = belum memilih batch
-  const bukaUbah = (r) => { setErr(''); setOk(''); setFe({}); setEdit(r.id); setF({ name: r.name, email: r.email || '', whatsapp: r.waAsli || r.whatsapp || '', institution: r.institution || '', bidang: r.bidang || '', hari: normHari(r.hari), status: r.status || 'terdaftar' }); setOpen(true) }
+  const bukaUbah = (r) => { setErr(''); setOk(''); setFe({}); setEdit(r.id); setF({ name: r.name, email: r.email || '', whatsapp: r.waAsli || r.whatsapp || '', institution: r.institution || '', pimpinan: r.pimpinan || '', domisili: r.domisili || '', wilayah: r.wilayah || '', bidang: r.bidang || '', hari: normHari(r.hari), status: r.status || 'terdaftar' }); setOpen(true) }
   const tutup = () => { if (busy) return; setOpen(false); setEdit(null); setF(empty); setFe({}); setErr(''); setOk('') }
   useEffect(() => { if (!open) return; const k = (e) => e.key === 'Escape' && tutup(); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k) })
   const ubah = (k, v) => { setF(x => ({ ...x, [k]: v })); if (fe[k]) setFe(x => ({ ...x, [k]: '' })); if (ok) setOk('') }
   // lagi = true: setelah tersimpan, form dikosongkan dan tetap terbuka untuk peserta berikutnya (batch tetap sama)
   const save = async (e, lagi = false) => { e?.preventDefault(); if (busy) return; setErr('')
-    const d = { ...f, name: f.name.trim(), email: f.email.trim(), institution: f.institution.trim(), bidang: (f.bidang || '').trim(), whatsapp: waNumber(f.whatsapp), waAsli: f.whatsapp.trim(), hari: normHari(f.hari) }, er = {}
-    if (!d.name) er.name = 'Nama wajib diisi.'
+    const d = { ...f, name: f.name.trim(), email: f.email.trim(), institution: f.institution.trim(), pimpinan: (f.pimpinan || '').trim(), domisili: (f.domisili || '').trim(), wilayah: (f.wilayah || '').trim(), bidang: (f.bidang || '').trim(), whatsapp: waNumber(f.whatsapp), waAsli: f.whatsapp.trim(), hari: normHari(f.hari) }, er = {}
+    if (!d.name) er.name = 'Nama PIC/Admin wajib diisi.'
     if (multi && f.hari === '?') er.hari = 'Pilih batch peserta.'
     if (f.whatsapp.trim() && !validWa(d.whatsapp)) er.whatsapp = 'Nomor tidak valid. Harus nomor HP berawalan 08 atau 628, contoh: 08123456789 atau 628123456789, atau kosongkan.'
     else if (d.whatsapp && rows.some(r => r.id !== edit && waNumber(r.whatsapp) === d.whatsapp)) er.whatsapp = 'Nomor WhatsApp ini sudah terdaftar.'
@@ -58,22 +58,22 @@ export default function Participants() {
   const sudah = useMemo(() => new Set(cs.map(c => c.participantId + '|' + ckDay(c, days))), [cs, days.join()])
   const hariStatus = (r) => [...new Set([...hariPeserta(r, days), ...days.flatMap((d, i) => sudah.has(r.id + '|' + d) ? [i + 1] : [])])].sort().map(n => ({ n, on: sudah.has(r.id + '|' + days[n - 1]) }))
   const statusTeks = (r) => hariStatus(r).map(s => (multi ? `Hari ${s.n}: ` : '') + (s.on ? 'Sudah check-in' : 'Belum check-in')).join('; ')
-  const list = rows.filter(r => cariCocok(q.trim(), [r.name, r.email, r.whatsapp, r.waAsli, r.institution, r.bidang, multi ? hariTeks(r, days) : '', statusTeks(r)].join(' ')))
+  const list = rows.filter(r => cariCocok(q.trim(), [r.name, r.email, r.whatsapp, r.waAsli, r.institution, r.pimpinan, r.domisili, r.wilayah, r.bidang, multi ? hariTeks(r, days) : '', statusTeks(r)].join(' ')))
   const inp = (k, p, extra = {}) => <input id={'pf-' + k} className={'form-control' + (fe[k] ? ' is-invalid' : '')} placeholder={p} value={f[k] || ''} autoComplete="off" disabled={busy} onChange={e => ubah(k, e.target.value)} {...extra}/>
   return <><div className="d-flex gap-2 mb-3 flex-wrap"><h1 className="h4 me-auto">Peserta ({loading ? <Skel w="2rem" h="1rem" className="align-middle"/> : rows.length})</h1>
     <button className="btn btn-primary btn-sm" onClick={bukaTambah}><i className="bi bi-plus-lg"/> Tambah peserta</button>
     <Link className="btn btn-outline-primary btn-sm" to="/admin/participants/import"><i className="bi bi-file-earmark-arrow-up"/> Import Excel</Link>
     <button className="btn btn-outline-secondary btn-sm" disabled={loading} onClick={exp}><i className="bi bi-download"/> Export Excel</button></div>
     {err && !open && <div className="alert alert-danger">{err}</div>}
-    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} aria-label="Cari peserta" placeholder="Cari nama, email, perusahaan, bidang, atau nomor WhatsApp" type="search" autoComplete="off" value={q} onChange={e=>setQ(e.target.value)}/>
+    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} aria-label="Cari peserta" placeholder="Cari email, perusahaan, pimpinan, PIC, nomor HP, domisili, wilayah, atau jenis usaha" type="search" autoComplete="off" value={q} onChange={e=>setQ(e.target.value)}/>
       {!loading && q.trim() && <span className="small text-muted" role="status" aria-live="polite">{list.length} dari {rows.length} peserta</span>}</div>
-    <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th style={{ width: '3rem' }}>No</th><th>Nama</th><th>Email</th><th>WhatsApp</th><th>Nama perusahaan</th><th>Bidang perusahaan</th>{multi && <th>Hari</th>}<th>Status check-in</th><th/></tr></thead><tbody>
-      {loading && <SkelRows rows={6} cols={multi ? 9 : 8}/>}
-      {!loading && list.map((r, i) => <tr key={r.id}><td className="text-muted">{i + 1}</td><td>{r.name}</td><td>{r.email}</td><td>{r.whatsapp}</td><td>{r.institution}</td><td>{r.bidang}</td>{multi && <td className="text-nowrap">{hariTeks(r, days)}</td>}<td className="text-nowrap">{hariStatus(r).map(s => <div key={s.n}><span className={'badge rounded-pill fw-medium text-bg-' + (s.on ? 'success' : 'secondary')}>{multi ? `Hari ${s.n}: ` : ''}{s.on ? 'Sudah check-in' : 'Belum check-in'}</span></div>)}</td>
+    <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th style={{ width: '3rem' }}>No</th><th>Email Address</th><th>Nama Perusahaan/Nama Individu</th><th>Nama PIC/Admin</th><th>No HP PIC/Admin</th><th>Domisili</th><th>Wilayah Operasional Perusahaan</th><th>Jenis Usaha</th>{multi && <th>Hari</th>}<th>Status check-in</th><th/></tr></thead><tbody>
+      {loading && <SkelRows rows={6} cols={multi ? 11 : 10}/>}
+      {!loading && list.map((r, i) => <tr key={r.id}><td className="text-muted">{i + 1}</td><td>{r.email}</td><td>{r.institution}{r.pimpinan && <div className="small text-muted">{r.pimpinan}</div>}</td><td>{r.name}</td><td>{r.whatsapp}</td><td>{r.domisili}</td><td>{r.wilayah}</td><td>{r.bidang}</td>{multi && <td className="text-nowrap">{hariTeks(r, days)}</td>}<td className="text-nowrap">{hariStatus(r).map(s => <div key={s.n}><span className={'badge rounded-pill fw-medium text-bg-' + (s.on ? 'success' : 'secondary')}>{multi ? `Hari ${s.n}: ` : ''}{s.on ? 'Sudah check-in' : 'Belum check-in'}</span></div>)}</td>
         <td style={{ width: '1%' }}><div className="d-flex flex-column align-items-center gap-1">
           <button type="button" className="btn btn-link p-1 lh-1" style={{ fontSize: '1.15rem' }} title="Ubah" aria-label={`Ubah ${r.name}`} onClick={() => bukaUbah(r)}><i className="bi bi-pencil-square"/></button>
           <button type="button" className="btn btn-link text-danger p-1 lh-1" style={{ fontSize: '1.15rem' }} title="Hapus" aria-label={`Hapus ${r.name}`} onClick={() => hapus(r)}><i className="bi bi-trash3"/></button></div></td></tr>)}
-      {!loading && !list.length && <tr><td colSpan={multi ? 9 : 8} className="text-center text-muted py-4">{rows.length ? 'Tidak ada peserta yang cocok.' : 'Belum ada peserta. Tambahkan manual atau import Excel.'}</td></tr>}</tbody></table></div>
+      {!loading && !list.length && <tr><td colSpan={multi ? 11 : 10} className="text-center text-muted py-4">{rows.length ? 'Tidak ada peserta yang cocok.' : 'Belum ada peserta. Tambahkan manual atau import Excel.'}</td></tr>}</tbody></table></div>
     {open && <div className="mdl-back" onMouseDown={e => e.target === e.currentTarget && tutup()}>
       <form className="mdl mdl-form" role="dialog" aria-modal="true" aria-labelledby="pf-t" onSubmit={save} noValidate>
         <div className="pf-head"><div className="pf-ic"><i className={'bi bi-' + (edit ? 'pencil-square' : 'person-plus')}/></div>
@@ -83,16 +83,19 @@ export default function Participants() {
         <div className="pf-body">
         {err && <div className="alert alert-danger py-2 small mb-3" role="alert">{err}</div>}
         {ok && <div className="alert alert-success py-2 small mb-3" role="status"><i className="bi bi-check-circle-fill"/> {ok}</div>}
-        <div className="pf-sec">Data peserta</div>
+        <div className="pf-sec">Perusahaan / Individu</div>
         <div className="row g-3">
-          <div className="col-12"><Field id="pf-name" label="Nama lengkap" req icon="person" error={fe.name}>{inp('name', 'Contoh: Budi Santoso', { type: 'text', autoFocus: true, ref: nameRef })}</Field></div>
-          <div className="col-12 col-md-6"><Field id="pf-whatsapp" label="Nomor WhatsApp" icon="whatsapp" error={fe.whatsapp} hint="Awali dengan 08 atau 628. Boleh dikosongkan.">{inp('whatsapp', '08123456789', { type: 'tel', inputMode: 'numeric' })}</Field></div>
-          <div className="col-12 col-md-6"><Field id="pf-email" label="Email" icon="envelope" error={fe.email} hint="Boleh dikosongkan.">{inp('email', 'nama@perusahaan.co.id', { type: 'email', inputMode: 'email' })}</Field></div>
+          <div className="col-12"><Field id="pf-email" label="Email Address" icon="envelope" error={fe.email} hint="Boleh dikosongkan.">{inp('email', 'nama@perusahaan.co.id', { type: 'email', inputMode: 'email' })}</Field></div>
+          <div className="col-12 col-md-6"><Field id="pf-institution" label="Nama Perusahaan/Nama Individu" icon="building">{inp('institution', 'Contoh: PT Maju Bersama', { type: 'text' })}</Field></div>
+          <div className="col-12 col-md-6"><Field id="pf-pimpinan" label="Nama Pimpinan" icon="person-badge">{inp('pimpinan', 'Contoh: Bapak Andi Wijaya', { type: 'text' })}</Field></div>
+          <div className="col-12 col-md-6"><Field id="pf-domisili" label="Domisili" icon="geo-alt">{inp('domisili', 'Contoh: Kota Bandung', { type: 'text' })}</Field></div>
+          <div className="col-12 col-md-6"><Field id="pf-wilayah" label="Wilayah Operasional Perusahaan" icon="map">{inp('wilayah', 'Contoh: Jawa Barat', { type: 'text' })}</Field></div>
+          <div className="col-12"><Field id="pf-bidang" label="Jenis Usaha" icon="briefcase">{inp('bidang', 'Contoh: Manufaktur', { type: 'text' })}</Field></div>
         </div>
-        <div className="pf-sec">Perusahaan</div>
+        <div className="pf-sec">PIC / Admin</div>
         <div className="row g-3">
-          <div className="col-12 col-md-6"><Field id="pf-institution" label="Nama perusahaan" icon="building">{inp('institution', 'Contoh: PT Maju Bersama', { type: 'text' })}</Field></div>
-          <div className="col-12 col-md-6"><Field id="pf-bidang" label="Bidang perusahaan" icon="briefcase">{inp('bidang', 'Contoh: Manufaktur', { type: 'text' })}</Field></div>
+          <div className="col-12"><Field id="pf-name" label="Nama PIC/Admin" req icon="person" error={fe.name}>{inp('name', 'Contoh: Budi Santoso', { type: 'text', autoFocus: true, ref: nameRef })}</Field></div>
+          <div className="col-12"><Field id="pf-whatsapp" label="No HP PIC/Admin" icon="whatsapp" error={fe.whatsapp} hint="Awali dengan 08 atau 628. Boleh dikosongkan.">{inp('whatsapp', '08123456789', { type: 'tel', inputMode: 'numeric' })}</Field></div>
         </div>
         {multi && <><div className="pf-sec">Kehadiran</div>
           <Field id="pf-hari" label="Batch kehadiran" req icon="calendar-event" error={fe.hari}>

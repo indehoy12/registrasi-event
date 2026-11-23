@@ -51,7 +51,7 @@ Email membawa tiket lengkap: nama, judul, tanggal, waktu, tempat, titik Google M
 
 ## Catatan perilaku data
 - Menghapus peserta otomatis mencabut tiketnya. Riwayat check-in yang sudah ada tetap tersimpan dan tetap tampil di laporan.
-- Mengubah nama, nama perusahaan, dan bidang perusahaan peserta ikut memperbarui tiketnya. Bila WhatsApp atau email diubah, status kirim direset ke "Belum" di menu Distribusi agar tiket bisa dikirim ke kontak baru.
+- Mengubah data peserta (Nama PIC/Admin, Nama Perusahaan/Individu, Nama Pimpinan, Domisili, Wilayah Operasional, Jenis Usaha) ikut memperbarui tiketnya. Bila WhatsApp atau email diubah, status kirim direset ke "Belum" di menu Distribusi agar tiket bisa dikirim ke kontak baru.
 
 ## Laporan Excel
 Menu **Laporan** menghasilkan file Excel tiga lembar (dibuat dengan ExcelJS, dimuat hanya saat tombol ditekan):
