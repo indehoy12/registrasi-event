@@ -12,7 +12,7 @@ export async function siapkan(req, perluKonfigurasi = []) {
   if (req.method !== 'POST') return { err: json({ error: 'Metode tidak didukung.' }, 405) }
   if (!API || !PID || perluKonfigurasi.some(k => !process.env[k])) return { err: json({ error: `Konfigurasi server belum lengkap (FB_API_KEY, FB_PROJECT_ID${perluKonfigurasi.length ? ', ' + perluKonfigurasi.join(', ') : ''}).` }, 500) }
   const idToken = (req.headers.get('authorization') || '').replace(/^Bearer /, '')
-  const body = await req.json().catch(() => ({})), { ticketId } = body
+  const { ticketId } = await req.json().catch(() => ({}))
   if (!idToken || !/^[\w-]{16,80}$/.test(ticketId || '')) return { err: json({ error: 'Permintaan tidak valid.' }, 400) }
 
   const lk = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${API}`,
@@ -33,7 +33,7 @@ export async function siapkan(req, perluKonfigurasi = []) {
   const maps = sf.mapsUrl?.stringValue || ''
   if (!/^https:\/\//.test(maps)) return { err: json({ error: 'Titik lokasi Google Maps belum diisi. Isi di menu Informasi seminar sebelum mengirim tiket.' }, 400) }
   const base = (process.env.SITE_URL || process.env.URL || new URL(req.url).origin).replace(/\/$/, '')
-  return { data: { idToken, ticketId, pf, sf, maps, base, tiketPenuh: body.tiketPenuh === true } }
+  return { data: { idToken, ticketId, pf, sf, maps, base } }
 }
 
 // Mencatat status kirim di tiket. Dicoba 2 kali; mengembalikan true/false agar pemanggil tahu bila status gagal tersimpan
@@ -106,7 +106,7 @@ export const EMAIL_VALID = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/
 // Email disamarkan di WhatsApp (bu***@gmail.com) supaya tidak terbuka penuh bila nomor HP ternyata milik orang lain.
 export const samarkanEmail = (e = '') => { const [u, d] = String(e).trim().split('@'); return `${u.slice(0, u.length > 3 ? 2 : 1)}***@${d}` }
 // Pesan WhatsApp singkat: mengarahkan peserta untuk membuka tiketnya di email.
-export function isiPesanArahEmail({ pf, sf }) {
+export function isiPesanArahEmail({ pf, sf, base, ticketId }) {
   const title0 = sf.title?.stringValue || 'Seminar', email = samarkanEmail(pf.email?.stringValue || '')
   const d1 = sf.date?.stringValue, d2 = sf.date2?.stringValue, hs = [...new Set((pf.hari?.stringValue || '').match(/[12]/g) || [])]
   const batch = d2 && hs.length === 1 ? hs[0] : '', label = batch ? `Batch ${batch}` : '', dB = batch === '2' ? d2 : d1
@@ -123,6 +123,7 @@ export function isiPesanArahEmail({ pf, sf }) {
     '',
     `Tiket QR dan rincian lengkap sudah kami kirim ke email ${email} dari ${dari}. Mohon cek kotak masuk atau folder Spam.`,
     '',
+    ...(base && ticketId ? ['Tiket (kode QR) juga dapat dibuka langsung melalui tautan berikut:', `${base}/tiket/${ticketId}`, ''] : []),
     `Mohon balas pesan ini dengan ${B1}Hadir${B2} sebagai konfirmasi bahwa Bapak/Ibu sudah menerima undangan ini.`,
     '',
     `Terima kasih. Panitia ${title}`,
@@ -133,12 +134,10 @@ export const untukWA = (t) => t.replaceAll(B1, '*').replaceAll(B2, '*')
 export const untukTeksBiasa = (t) => t.replaceAll(B1, '').replaceAll(B2, '')
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 // Versi HTML sederhana (QR di atas, lalu isi pesan yang sama). Tautan dibuat bisa diklik.
-export function untukHtml(t, { cid, cidPeta, maps } = {}) {
+export function untukHtml(t, { cid } = {}) {
   const body = t.split('\n\n').map(par => '<p style="margin:0 0 14px">' + esc(par).replace(/\n/g, '<br>')
     .replace(/https:\/\/[^\s<]+/g, u => `<a href="${u}" style="color:#0f766e">${u}</a>`)
-    .replaceAll(B1, '<b>').replaceAll(B2, '</b>') + '</p>'
-    // Gambar peta tepat di bawah paragraf yang memuat tautan Google Maps; diketuk = buka Google Maps.
-    + (cidPeta && maps && par.includes(maps) ? `<p style="margin:0 0 14px"><a href="${maps}"><img src="cid:${cidPeta}" width="520" alt="Peta lokasi acara" style="width:100%;max-width:520px;height:auto;border:1px solid #e4e7ec;border-radius:12px"></a><br><span style="font-size:12px;color:#667085">Peta &copy; kontributor OpenStreetMap. Ketuk peta untuk membuka Google Maps.</span></p>` : '')).join('')
+    .replaceAll(B1, '<b>').replaceAll(B2, '</b>') + '</p>').join('')
   return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#18212f;max-width:560px">`
     + (cid ? `<p style="text-align:center;margin:0 0 16px"><img src="cid:${cid}" width="260" height="260" alt="Kode QR tiket" style="border:1px solid #e4e7ec;border-radius:12px"></p>` : '') + body + '</div>'
 }

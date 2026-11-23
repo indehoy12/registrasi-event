@@ -1,7 +1,6 @@
 // Mengirim tiket lewat email (Gmail SMTP). Email membawa tiket lengkap (rincian kegiatan + QR sebagai gambar); WhatsApp hanya mengarahkan peserta ke email ini.
 // Environment variable Netlify: GMAIL_USER (alamat Gmail pengirim), GMAIL_APP_PASSWORD (sandi aplikasi 16 karakter), MAIL_FROM_NAME (opsional).
 import nodemailer from 'nodemailer'
-import { koordinatDariMaps, petaPng } from '../lib/peta.mjs'
 import QRCode from 'qrcode'
 import { json, siapkan, tandaiTiket, isiPesan, untukTeksBiasa, untukHtml, namaPengirim, PERINGATAN_STATUS } from '../lib/common.mjs'
 
@@ -13,9 +12,6 @@ export default async (req) => {
 
   const { teks, title, label } = isiPesan({ pf, sf, maps, base, ticketId, adaGambar: true })
   const qr = await QRCode.toBuffer(ticketId, { width: 700, margin: 2 })
-  // Gambar peta lokasi (bila tautan Maps memuat koordinat). Bila gagal dibuat, email tetap dikirim tanpa gambar peta.
-  let peta = null; const kor = koordinatDariMaps(maps)
-  if (kor) { try { peta = await petaPng(kor.lat, kor.lng) } catch (e) { console.error('peta email gagal:', e.message) } }
   // Bersihkan isian dari spasi, tanda kutip, dan karakter tak terlihat yang sering ikut tersalin.
   const user = process.env.GMAIL_USER.trim().replace(/^["']|["']$/g, '').trim(), dari = namaPengirim()
   const pass = process.env.GMAIL_APP_PASSWORD.replace(/[^A-Za-z0-9]/g, '')
@@ -26,8 +22,8 @@ export default async (req) => {
     await smtp.sendMail({
       from: { name: dari, address: user }, to, replyTo: user,
       subject: `Tiket ${title}${label ? ' ' + label : ''} - ${pf.name?.stringValue || ''}`.trim(),
-      text: untukTeksBiasa(teks), html: untukHtml(teks, { cid: 'qr-tiket', ...(peta ? { cidPeta: 'peta-lokasi', maps } : {}) }),
-      attachments: [{ filename: 'tiket-qr.png', content: qr, contentType: 'image/png', cid: 'qr-tiket' }, ...(peta ? [{ filename: 'peta-lokasi.png', content: peta, contentType: 'image/png', cid: 'peta-lokasi' }] : [])],
+      text: untukTeksBiasa(teks), html: untukHtml(teks, { cid: 'qr-tiket' }),
+      attachments: [{ filename: 'tiket-qr.png', content: qr, contentType: 'image/png', cid: 'qr-tiket' }],
     })
   } catch (e) {
     const login = /Invalid login|Username and Password|EAUTH/i.test(String(e.message) + (e.code || ''))
