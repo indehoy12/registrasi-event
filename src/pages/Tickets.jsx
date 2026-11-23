@@ -71,12 +71,12 @@ export default function Tickets() {
     <button className={'btn btn-primary btn-sm' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy || !todo.length} onClick={() => gen(todo)}>{`Buat ${todo.length} tiket`}</button></div>
     <MapsWarn loaded={sl} mapsOk={mapsOk}/>
     {msg && <div className="alert alert-info">{msg}</div>}
-    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} type="search" autoComplete="off" aria-label="Cari peserta atau nomor tiket" placeholder="Cari nama, email, perusahaan, nomor tiket, atau status" value={q} onChange={e => setQ(e.target.value)}/>
+    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} type="search" autoComplete="off" aria-label="Cari nama PIC, perusahaan, atau nomor tiket" placeholder="Cari nama PIC, perusahaan, email, nomor tiket, atau status" value={q} onChange={e => setQ(e.target.value)}/>
       {!loading && q.trim() && <span className="small text-muted" role="status" aria-live="polite">{tampil.length} dari {ps.length} peserta</span>}</div>
-    <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th style={{ width: '3rem' }}>No</th><th>Peserta</th><th>Email</th><th>No. tiket</th><th>Status tiket</th><th/></tr></thead><tbody>
-      {loading && <SkelRows rows={6} cols={6}/>}
-      {!loading && !tampil.length && <tr><td colSpan={6} className="text-center text-muted py-4">{q.trim() ? <>Tidak ada peserta yang cocok dengan “{q.trim()}”. <button className="btn btn-link btn-sm p-0 align-baseline" onClick={() => setQ('')}>Hapus pencarian</button></> : 'Belum ada peserta.'}</td></tr>}
-      {!loading && tampil.map((p, i) => { const t = by[p.id]; return <tr key={p.id}><td className="text-muted">{i + 1}</td><td>{p.name}</td><td className="small">{p.email || <span className="text-muted">-</span>}</td><td className="tk-code">{t ? showCode(t.id) : '-'}</td><td><Badge s={t ? t.status : 'belum'}/></td>
+    <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th style={{ width: '3rem' }}>No</th><th>Nama PIC/Admin</th><th>Nama Perusahaan/Nama Individu</th><th>Email Address</th><th>No. tiket</th><th>Status tiket</th><th/></tr></thead><tbody>
+      {loading && <SkelRows rows={6} cols={7}/>}
+      {!loading && !tampil.length && <tr><td colSpan={7} className="text-center text-muted py-4">{q.trim() ? <>Tidak ada peserta yang cocok dengan “{q.trim()}”. <button className="btn btn-link btn-sm p-0 align-baseline" onClick={() => setQ('')}>Hapus pencarian</button></> : 'Belum ada peserta.'}</td></tr>}
+      {!loading && tampil.map((p, i) => { const t = by[p.id]; return <tr key={p.id}><td className="text-muted">{i + 1}</td><td>{p.name}</td><td>{p.institution || <span className="text-muted">-</span>}{p.pimpinan && <div className="small text-muted">{p.pimpinan}</div>}</td><td className="small">{p.email || <span className="text-muted">-</span>}</td><td className="tk-code">{t ? showCode(t.id) : '-'}</td><td><Badge s={t ? t.status : 'belum'}/></td>
         <td className="text-end">{!t && <button className="btn btn-link btn-sm" disabled={busy} onClick={() => gen([p])}>Buat tiket</button>}
         {t && <button className="btn btn-link btn-sm" onClick={() => setLihat(t.id)}>Lihat QR</button>}
         {t && <button className="btn btn-link btn-sm" onClick={() => png(t, p)}>Unduh PNG</button>}
