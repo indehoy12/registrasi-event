@@ -13,7 +13,7 @@ const parseHari = (v) => { const s = String(v ?? '').trim().toLowerCase(); if (!
 const pesanError = (ex) => ex?.code === 'permission-denied' ? 'ditolak oleh aturan Firestore (periksa role/active akun dan pastikan firestore.rules sudah di-Publish)' : `${ex?.code || ''} ${ex?.message || ex}`.trim()
 export default function Import() {
   const { sem } = useSeminar(), days = hariList(sem), multi = days.length > 1, [adaHari, setAdaHari] = useState(true)
-  const [existing, loadEx] = useColState('participants'), [reading, setReading] = useState(false), [rows, setRows] = useState([]), [skipped, setSkipped] = useState(0), [bad, setBad] = useState([]), [msg, setMsg] = useState(''), [err, setErr] = useState(''), [busy, setBusy] = useState(false)
+  const [existing, loadEx] = useColState('participants'), [reading, setReading] = useState(false), [rows, setRows] = useState([]), [skipped, setSkipped] = useState(0), [bad, setBad] = useState([]), [msg, setMsg] = useState(''), [err, setErr] = useState(''), [busy, setBusy] = useState(false), [semua, setSemua] = useState(false)
   const read = async (e) => { const f = e.target.files[0]; if (!f || loadEx) return; setMsg(''); setErr(''); setRows([]); setSkipped(0); setBad([]); setReading(true)
     try {
       const wb = XLSX.read(await f.arrayBuffer()), j = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]])
@@ -22,12 +22,14 @@ export default function Import() {
       const seen = new Set(existing.map(r => waNumber(r.whatsapp))), ok = [], badRows = []; let dup = 0
       // Peserta tanpa WhatsApp dianggap duplikat bila nama, email, dan perusahaan sama persis (email perusahaan boleh dipakai beberapa orang berbeda)
       const kunci2 = (r) => [r.name, r.email, r.institution].map(v => String(v || '').trim().toLowerCase()).join('|'), seen2 = new Set(existing.filter(r => !waNumber(r.whatsapp)).map(kunci2))
+      const kunci3 = (r) => [r.whatsapp, r.name, r.email, r.institution].map(v => String(v || '').trim().toLowerCase()).join('|'), seenAll = new Set(existing.map(kunci3))
       j.forEach((x, i) => { const r = { name: String(ambil(x, 'name') || '').trim(), email: String(ambil(x, 'email') || '').trim(), whatsapp: waNumber(String(ambil(x, 'whatsapp') || '')), waAsli: String(ambil(x, 'whatsapp') || '').trim(), institution: String(ambil(x, 'institution') || '').trim(), pimpinan: String(ambil(x, 'pimpinan') || '').trim(), domisili: String(ambil(x, 'domisili') || '').trim(), wilayah: String(ambil(x, 'wilayah') || '').trim(), bidang: String(ambil(x, 'bidang') || '').trim() }, line = i + 2, hv = parseHari(ambil(x, 'hari')); r.hari = hv ?? ''
         if (!r.name && !r.whatsapp && !r.email) return
         if (!r.name) return badRows.push(`Baris ${line}: Nama PIC/Admin kosong`)
         if (hv === null) return badRows.push(`Baris ${line} (${r.name}): kolom Hari harus 1, 2, atau kosong (kedua hari)`)
         if (r.whatsapp && !validWa(r.whatsapp)) return badRows.push(`Baris ${line} (${r.name}): nomor WhatsApp bukan nomor HP (harus berawalan 08 atau 628)`)
         if (r.email && !validEmail(r.email)) return badRows.push(`Baris ${line} (${r.name}): format email tidak valid`)
+        if (semua) { if (seenAll.has(kunci3(r))) dup++; else ok.push(r); return }   // mode "import semua": nomor sama boleh, hanya baris yang persis sudah ada di sistem yang dilewati
         if (r.whatsapp ? seen.has(key(r)) : seen2.has(kunci2(r))) dup++; else { if (r.whatsapp) seen.add(key(r)); else seen2.add(kunci2(r)); ok.push(r) } })
       setAdaHari(ALIAS.hari.some(a => heads.has(a))); setRows(ok); setSkipped(dup); setBad(badRows)
     } catch (ex) { setErr('File tidak bisa dibaca: ' + (ex.message || ex)) }
@@ -47,6 +49,7 @@ export default function Import() {
   const tpl = async () => { try { const { unduhTemplate } = await import('../excel'); await unduhTemplate() } catch (ex) { setErr('Gagal membuat template: ' + (ex.message || ex)) } }
   return <><h1 className="h4 mb-3">Import peserta</h1>{msg && <div className="alert alert-success" role="status">{msg}</div>}{err && <div className="alert alert-danger" role="alert">{err}</div>}
     <p className="text-muted">Kolom file: Email Address, Nama Perusahaan/Nama Individu, Nama Pimpinan, Nama PIC/Admin, No HP PIC/Admin, Domisili, Wilayah Operasional Perusahaan, Jenis Usaha. Kolom wajib: Nama PIC/Admin saja, yang lain boleh kosong. Bila kegiatan 2 hari dan pesertanya berbeda tiap hari, isi kolom <b>Hari</b> dengan 1 atau 2 (kosong = hadir di kedua hari). <button className="btn btn-link p-0" onClick={tpl}>Unduh template</button></p>
+    <div className="form-check mb-2"><input className="form-check-input" type="checkbox" id="semua" checked={semua} disabled={busy} onChange={e => setSemua(e.target.checked)}/><label className="form-check-label" htmlFor="semua">Import semua baris, termasuk yang nomor WhatsApp-nya sama dengan peserta lain (centang <b>sebelum</b> memilih file)</label></div>
     {loadEx ? <Skel w="400px" h="2.4rem" r="8px" className="mb-3"/> : <input type="file" accept=".xlsx,.xls,.csv" className="form-control mb-3" style={{maxWidth:400}} disabled={busy} onChange={read}/>}
     {reading && <div aria-busy="true" aria-label="Membaca file"><Skel w="40%" className="mb-2"/><Skel h="1.1rem" className="mb-1"/><Skel h="1.1rem" className="mb-1"/><Skel h="1.1rem" className="mb-3"/></div>}
     {skipped > 0 && <div className="alert alert-warning">{skipped} baris dilewati karena duplikat (nomor WhatsApp sama, atau nama, email, dan perusahaan sama untuk peserta tanpa nomor).</div>}
