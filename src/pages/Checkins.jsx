@@ -14,7 +14,7 @@ export default function Checkins({ canEdit }) {
     && cariCocok(q.trim(), [fmt(c.checkedInAt), multi ? hariLabel(days, ckDay(c, days)) : '', c.participantName, inst(c), email(c), c.isRepresentative ? 'Perwakilan' : 'Peserta', c.representativeName, c.via === 'manual' ? 'Manual' : 'QR', c.officerEmail].join(' '), showCode(c.ticketId)))
 
   const undo = async (c) => {
-    if (!await ask({ title: 'Batalkan check-in?', text: `Check-in ${c.participantName} dihapus dan tiketnya bisa dipakai lagi. Gunakan ini jika petugas salah memproses.`, ok: 'Batalkan check-in', danger: true, icon: 'arrow-counterclockwise' })) return
+    if (!await ask({ title: 'Batalkan check-in?', text: `Check-in ${c.participantName} dihapus dan undangannya bisa dipakai lagi. Gunakan ini jika petugas salah memproses.`, ok: 'Batalkan check-in', danger: true, icon: 'arrow-counterclockwise' })) return
     try { await batalkanCheckin(c, ckDay(c, days)); log('batalkan check-in', c); setMsg(`Check-in ${c.participantName} dibatalkan.`)
     } catch (e) { setMsg('Gagal membatalkan: ' + (e.code === 'permission-denied' ? 'ditolak oleh Firestore Rules (publish firestore.rules terbaru).' : e.message)) } }
 
@@ -33,7 +33,7 @@ export default function Checkins({ canEdit }) {
       {!loading && q.trim() && <span className="small text-muted align-self-center" role="status" aria-live="polite">{list.length} dari {cs.length} data</span>}
       {multi && <div className="d-flex gap-1"><button className={`btn btn-sm ${hf === 'semua' ? 'btn-dark' : 'btn-outline-dark'}`} onClick={() => setHf('semua')}>Semua hari</button>{days.map(d => <button key={d} className={`btn btn-sm ${hf === d ? 'btn-dark' : 'btn-outline-dark'}`} onClick={() => setHf(d)}>{hariLabel(days, d)}</button>)}</div>}
       <div className="d-flex gap-1"><Chip k="semua" l="Semua"/><Chip k="sendiri" l="Peserta sendiri"/><Chip k="wakil" l="Perwakilan"/></div></div>
-    <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th style={{ width: '3rem' }}>No</th><th>Waktu</th>{multi && <th>Hari</th>}<th>Nama PIC/Admin</th><th>Nama Perusahaan/Nama Individu</th><th>Email Address</th><th>No. tiket</th><th>Hadir sebagai</th><th>Nama perwakilan</th><th>Cara</th><th>Petugas</th>{canEdit && <th/>}</tr></thead><tbody>
+    <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th style={{ width: '3rem' }}>No</th><th>Waktu</th>{multi && <th>Hari</th>}<th>Nama PIC/Admin</th><th>Nama Perusahaan/Nama Individu</th><th>Email Address</th><th>No. undangan</th><th>Hadir sebagai</th><th>Nama perwakilan</th><th>Cara</th><th>Petugas</th>{canEdit && <th/>}</tr></thead><tbody>
       {loading && <SkelRows rows={6} cols={(canEdit ? 11 : 10) + (multi ? 1 : 0)}/>}
       {!loading && list.map((c, i) => <tr key={c.id}><td className="text-muted">{i + 1}</td><td>{fmt(c.checkedInAt)}</td>{multi && <td>{hariLabel(days, ckDay(c, days))}</td>}<td>{c.participantName}</td><td>{inst(c) || <span className="text-muted">-</span>}</td><td className="small">{email(c) || <span className="text-muted">-</span>}</td><td className="tk-code">{showCode(c.ticketId)}</td><td><Badge s={c.isRepresentative ? 'perwakilan' : 'peserta'}/></td><td>{c.representativeName || '-'}</td><td>{c.via === 'manual' ? 'Manual' : 'QR'}</td><td>{c.officerEmail}</td>
         {canEdit && <td className="text-end text-nowrap"><button className="btn btn-link btn-sm" onClick={() => setEd({ c, who: c.isRepresentative ? 'wakil' : 'sendiri', name: c.representativeName || '' })}>Ubah</button>

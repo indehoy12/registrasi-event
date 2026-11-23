@@ -1,12 +1,12 @@
-// Bagian bersama untuk pengiriman tiket lewat WhatsApp dan email: pemeriksaan login, pengambilan data, dan isi pesan.
+// Bagian bersama untuk pengiriman undangan lewat WhatsApp dan email: pemeriksaan login, pengambilan data, dan isi pesan.
 // Isi email dibuat di satu tempat ini (isiPesan). WhatsApp hanya berisi pemberitahuan yang mengarahkan peserta ke emailnya (isiPesanArahEmail);
-// tiket dan QR-nya ada di email.
+// undangan dan QR-nya ada di email.
 const API = process.env.FB_API_KEY, PID = process.env.FB_PROJECT_ID
 export const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'Content-Type': 'application/json' } })
 export const fsr = (p, idToken, init = {}) => fetch(`https://firestore.googleapis.com/v1/projects/${PID}/databases/(default)/documents/${p}`,
   { ...init, headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' } })
 
-// Memeriksa pemanggil (admin/superadmin aktif) lalu mengambil tiket, peserta, dan info seminar.
+// Memeriksa pemanggil (admin/superadmin aktif) lalu mengambil undangan, peserta, dan info seminar.
 // Mengembalikan { err: Response } bila ada yang tidak beres, atau { data } bila siap dipakai.
 export async function siapkan(req, perluKonfigurasi = []) {
   if (req.method !== 'POST') return { err: json({ error: 'Metode tidak didukung.' }, 405) }
@@ -23,20 +23,20 @@ export async function siapkan(req, perluKonfigurasi = []) {
   if (!ud || ud.active?.booleanValue !== true || !['admin', 'superadmin'].includes(ud.role?.stringValue)) return { err: json({ error: 'Akses ditolak.' }, 403) }
 
   const t = await fsr(`tickets/${ticketId}`, idToken)
-  if (!t.ok) return { err: json({ error: 'Tiket tidak ditemukan.' }, 404) }
+  if (!t.ok) return { err: json({ error: 'Undangan tidak ditemukan.' }, 404) }
   const tf = (await t.json()).fields
-  if (tf.status?.stringValue !== 'aktif') return { err: json({ error: 'Tiket tidak aktif.' }, 400) }
+  if (tf.status?.stringValue !== 'aktif') return { err: json({ error: 'Undangan tidak aktif.' }, 400) }
   const p = await fsr(`participants/${tf.participantId?.stringValue}`, idToken)
   if (!p.ok) return { err: json({ error: 'Data peserta tidak ditemukan.' }, 404) }
   const pf = (await p.json()).fields
   const sm = await fsr('seminar/main', idToken), sf = sm.ok ? (await sm.json()).fields || {} : {}
   const maps = sf.mapsUrl?.stringValue || ''
-  if (!/^https:\/\//.test(maps)) return { err: json({ error: 'Titik lokasi Google Maps belum diisi. Isi di menu Informasi seminar sebelum mengirim tiket.' }, 400) }
+  if (!/^https:\/\//.test(maps)) return { err: json({ error: 'Titik lokasi Google Maps belum diisi. Isi di menu Informasi seminar sebelum mengirim undangan.' }, 400) }
   const base = (process.env.SITE_URL || process.env.URL || new URL(req.url).origin).replace(/\/$/, '')
   return { data: { idToken, ticketId, pf, sf, maps, base } }
 }
 
-// Mencatat status kirim di tiket. Dicoba 2 kali; mengembalikan true/false agar pemanggil tahu bila status gagal tersimpan
+// Mencatat status kirim di undangan. Dicoba 2 kali; mengembalikan true/false agar pemanggil tahu bila status gagal tersimpan
 // (pesan sudah terkirim, jadi jangan sampai dikirim ulang tanpa sadar).
 export async function tandaiTiket(idToken, ticketId, fields) {
   const url = `tickets/${ticketId}?${Object.keys(fields).map(k => 'updateMask.fieldPaths=' + k).join('&')}`
@@ -50,11 +50,11 @@ export const PERINGATAN_STATUS = 'Pesan sudah terkirim, tetapi status "terkirim"
 const B1 = '\u0001', B2 = '\u0002'   // penanda teks tebal: WhatsApp = *teks*, email = <b>teks</b>
 // Bila label batch otomatis ditambahkan, buang kata "Batch N" yang sudah ada di judul supaya tidak dobel ("... Batch 2 - Batch 2").
 const bersihBatch = (t) => t.replace(/\s*[-\u2013\u2014(:]?\s*\bbatch\s*\d+\s*\)?/gi, '').replace(/\s{2,}/g, ' ').replace(/[\s\-\u2013\u2014:]+$/, '').trim() || t
-// Sapaan: nama perusahaan diutamakan (tebal), lalu nama pimpinan, lalu "u.p." nama PIC/Admin. Tanpa nama perusahaan, kembali ke sapaan lama dengan nama PIC.
+// Sapaan: nama perusahaan diutamakan (tebal), lalu nama pimpinan. Tanpa nama perusahaan, kembali ke sapaan lama dengan nama PIC.
 const sapaan = (pf) => {
   const usaha = (pf.institution?.stringValue || '').trim(), pimpinan = (pf.pimpinan?.stringValue || '').trim(), pic = (pf.name?.stringValue || '').trim()
   if (!usaha) return [`Yth. Bapak/Ibu ${pic},`]
-  return ['Yth. Bapak/Ibu Pimpinan', `${B1}${usaha}${B2}`, ...(pimpinan ? [pimpinan] : []), ...(pic ? [`u.p. ${pic} (PIC/Admin)`] : [])]
+  return ['Yth. Bapak/Ibu Pimpinan', `${B1}${usaha}${B2}`, ...(pimpinan ? [pimpinan] : [])]
 }
 const tgl = (s) => new Date(s + 'T00:00:00Z').toLocaleDateString('id-ID', { dateStyle: 'full', timeZone: 'UTC' })
 
@@ -71,7 +71,7 @@ export function isiPesan({ pf, sf, maps, base, ticketId, adaGambar }) {
   const timeEnd = sf.timeEnd?.stringValue, agenda = sf.agenda?.stringValue
   const jam = (x) => x.replace(':', '.')
   const waktu = time ? `pukul ${jam(time)}${timeEnd ? ' - ' + jam(timeEnd) : ''} WIB` : ''
-  const link = `${base}/tiket/${ticketId}`
+  const link = `${base}/undangan/${ticketId}`
   const c8 = ticketId.replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase(), nomor = c8.slice(0, 4) + ' ' + c8.slice(4)
   const detail = [
     ...(dua ? [d1 && `Hari ke-1 : ${tgl(d1)}`, `Hari ke-2 : ${tgl(d2)}`] : [dSatu && `Hari/Tanggal : ${tgl(dSatu)}`]),
@@ -88,16 +88,16 @@ export function isiPesan({ pf, sf, maps, base, ticketId, adaGambar }) {
     maps,
     '',
     adaGambar
-      ? 'Sebagai tanda masuk, kami sampaikan tiket elektronik berupa kode QR yang terlampir pada pesan ini. Mohon menunjukkan kode QR tersebut kepada petugas pada saat kedatangan.'
-      : 'Sebagai tanda masuk, kami sampaikan tiket elektronik berupa kode QR yang dapat dibuka melalui tautan berikut. Mohon menunjukkannya kepada petugas pada saat kedatangan:',
-    ...(adaGambar ? ['', 'Apabila kode QR tidak tampil, tiket dapat dibuka melalui tautan berikut:'] : []),
+      ? 'Sebagai tanda masuk, kami sampaikan undangan elektronik berupa kode QR yang terlampir pada pesan ini. Mohon menunjukkan kode QR tersebut kepada petugas pada saat kedatangan.'
+      : 'Sebagai tanda masuk, kami sampaikan undangan elektronik berupa kode QR yang dapat dibuka melalui tautan berikut. Mohon menunjukkannya kepada petugas pada saat kedatangan:',
+    ...(adaGambar ? ['', 'Apabila kode QR tidak tampil, undangan dapat dibuka melalui tautan berikut:'] : []),
     link,
     '',
-    'Apabila kode QR tidak dapat dipindai, petugas dapat mencari data Bapak/Ibu berdasarkan nama perusahaan atau nama PIC.',
+    'Apabila kode QR tidak dapat dipindai, petugas dapat mencari data Bapak/Ibu berdasarkan nama perusahaan.',
     '',
-    label ? `Kode QR ini berlaku pada jadwal ${label} (${tgl(dSatu)}). Kehadiran Bapak/Ibu menjadi salah satu pertimbangan penetapan sebagai Daftar Rekanan Mampu (DRM) PT Kawasan Industri Terpadu Batang. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.`
-      : dua ? 'Kode QR yang sama dipakai pada kedua hari kegiatan, dan dipindai satu kali setiap hari. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.'
-       : 'Kode QR ini berlaku untuk satu kali registrasi. Apabila Bapak/Ibu berhalangan hadir, tiket dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.',
+    label ? `Undangan ini berlaku untuk 1 (satu) peserta. Kode QR ini berlaku pada jadwal ${label} (${tgl(dSatu)}). Kehadiran Bapak/Ibu menjadi salah satu pertimbangan penetapan sebagai Daftar Rekanan Mampu (DRM) PT Kawasan Industri Terpadu Batang. Apabila Bapak/Ibu berhalangan hadir, undangan dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.`
+      : dua ? 'Undangan ini berlaku untuk 1 (satu) peserta. Kode QR yang sama dipakai pada kedua hari kegiatan, dan dipindai satu kali setiap hari. Apabila Bapak/Ibu berhalangan hadir, undangan dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.'
+       : 'Undangan ini berlaku untuk 1 (satu) peserta. Kode QR ini berlaku untuk satu kali registrasi. Apabila Bapak/Ibu berhalangan hadir, undangan dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.',
     '',
     'Atas perhatian dan kehadiran Bapak/Ibu, kami ucapkan terima kasih.',
     '',
@@ -111,7 +111,7 @@ export const namaPengirim = () => (process.env.MAIL_FROM_NAME || '').trim() || '
 export const EMAIL_VALID = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/
 // Email disamarkan di WhatsApp (bu***@gmail.com) supaya tidak terbuka penuh bila nomor HP ternyata milik orang lain.
 export const samarkanEmail = (e = '') => { const [u, d] = String(e).trim().split('@'); return `${u.slice(0, u.length > 3 ? 2 : 1)}***@${d}` }
-// Pesan WhatsApp singkat: mengarahkan peserta untuk membuka tiketnya di email.
+// Pesan WhatsApp singkat: mengarahkan peserta untuk membuka undangannya di email.
 export function isiPesanArahEmail({ pf, sf, base, ticketId }) {
   const title0 = sf.title?.stringValue || 'Seminar', email = samarkanEmail(pf.email?.stringValue || '')
   const d1 = sf.date?.stringValue, d2 = sf.date2?.stringValue, hs = [...new Set((pf.hari?.stringValue || '').match(/[12]/g) || [])]
@@ -127,9 +127,11 @@ export function isiPesanArahEmail({ pf, sf, base, ticketId }) {
     '',
     `Bapak/Ibu kami undang pada ${B1}${title}${label ? ' - ' + label : ''}${B2}${kapan ? ': ' + kapan : ''}.`,
     '',
-    `Tiket QR dan rincian lengkap sudah kami kirim ke email ${email} dari ${dari}. Mohon cek kotak masuk atau folder Spam.`,
+    `Undangan QR dan rincian lengkap sudah kami kirim ke email ${email} dari ${dari}. Mohon cek kotak masuk atau folder Spam.`,
     '',
-    ...(base && ticketId ? ['Tiket (kode QR) juga dapat dibuka langsung melalui tautan berikut:', `${base}/tiket/${ticketId}`, ''] : []),
+    ...(base && ticketId ? ['Undangan (kode QR) juga dapat dibuka langsung melalui tautan berikut:', `${base}/undangan/${ticketId}`, ''] : []),
+    'Undangan ini berlaku untuk 1 (satu) peserta.',
+    '',
     `Mohon balas pesan ini dengan ${B1}Hadir${B2} sebagai konfirmasi bahwa Bapak/Ibu sudah menerima undangan ini.`,
     '',
     `Terima kasih. Panitia ${title}`,
@@ -140,12 +142,10 @@ export const untukWA = (t) => t.replaceAll(B1, '*').replaceAll(B2, '*')
 export const untukTeksBiasa = (t) => t.replaceAll(B1, '').replaceAll(B2, '')
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 // Versi HTML sederhana (QR di atas, lalu isi pesan yang sama). Tautan dibuat bisa diklik.
-export function untukHtml(t, { cid, petaCid, maps } = {}) {
+export function untukHtml(t, { cid } = {}) {
   const body = t.split('\n\n').map(par => '<p style="margin:0 0 14px">' + esc(par).replace(/\n/g, '<br>')
     .replace(/https:\/\/[^\s<]+/g, u => `<a href="${u}" style="color:#0f766e">${u}</a>`)
-    .replaceAll(B1, '<b>').replaceAll(B2, '</b>') + '</p>'
-    // Peta statis (gambar) tepat setelah paragraf "Titik lokasi"; bisa diklik untuk membuka Google Maps
-    + (petaCid && maps && par.startsWith('Titik lokasi (Google Maps):') ? `<p style="margin:0 0 6px"><a href="${esc(maps)}"><img src="cid:${petaCid}" width="560" alt="Peta lokasi acara" style="display:block;width:100%;max-width:560px;height:auto;border:1px solid #e4e7ec;border-radius:12px"></a></p><p style="margin:0 0 14px;font-size:11px;color:#667085">Ketuk peta untuk membuka Google Maps. Peta &copy; OpenStreetMap contributors.</p>` : '')).join('')
+    .replaceAll(B1, '<b>').replaceAll(B2, '</b>') + '</p>').join('')
   return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#18212f;max-width:560px">`
-    + (cid ? `<p style="text-align:center;margin:0 0 16px"><img src="cid:${cid}" width="260" height="260" alt="Kode QR tiket" style="border:1px solid #e4e7ec;border-radius:12px"></p>` : '') + body + '</div>'
+    + (cid ? `<p style="text-align:center;margin:0 0 16px"><img src="cid:${cid}" width="260" height="260" alt="Kode QR undangan" style="border:1px solid #e4e7ec;border-radius:12px"></p>` : '') + body + '</div>'
 }

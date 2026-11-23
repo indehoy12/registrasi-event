@@ -16,10 +16,10 @@ export default function Seminar() {
       if (tercatat.length) return setMsg({ ok: false, t: `Sudah ada check-in pada ${tercatat.map(d => d === 'hari-1' ? 'masa uji coba (sebelum tanggal diisi)' : d).join(', ')} yang tidak ada di jadwal baru, sehingga perubahan tanggal ditolak. Jika itu check-in uji coba, batalkan dulu di menu Riwayat kehadiran.` })
     } catch { return setMsg({ ok: false, t: 'Tidak bisa memeriksa data check-in. Periksa koneksi lalu coba simpan lagi.' }) }
     if (!maps) return setMsg({ ok: false, t: 'Titik lokasi Google Maps wajib diisi dengan tautan Google Maps yang benar atau koordinat (contoh: -6.9175, 107.6191).' })
-    try { await setDoc(doc(db,'seminar','main'), { ...f, mapsUrl: maps, lat: has ? f.lat : null, lng: has ? f.lng : null }); setF({ ...f, mapsUrl: maps }); setAwal({ date: f.date || '', date2: f.date2 || '' }); setMsg({ ok: true, t: 'Informasi acara disimpan. Titik lokasi akan ikut dikirim lewat WhatsApp dan tampil di halaman tiket.' }) }
+    try { await setDoc(doc(db,'seminar','main'), { ...f, mapsUrl: maps, lat: has ? f.lat : null, lng: has ? f.lng : null }); setF({ ...f, mapsUrl: maps }); setAwal({ date: f.date || '', date2: f.date2 || '' }); setMsg({ ok: true, t: 'Informasi acara disimpan. Titik lokasi akan ikut dikirim lewat WhatsApp dan tampil di halaman undangan.' }) }
     catch { setMsg({ ok: false, t: 'Gagal menyimpan. Periksa koneksi atau hak akses akun Anda.' }) } }
   const set = (k) => (e) => { setF({ ...f, [k]: e.target.value }); setMsg(null) }
-  return <><h1 className="h4">Informasi acara</h1><p className="sub">Data ini tampil di halaman tiket dan dikirim bersama tiket lewat WhatsApp. Isi lengkap sebelum membuat dan mengirim tiket.</p>
+  return <><h1 className="h4">Informasi acara</h1><p className="sub">Data ini tampil di halaman undangan dan dikirim bersama undangan lewat WhatsApp. Isi lengkap sebelum membuat dan mengirim undangan.</p>
     {msg && <div className={`alert alert-${msg.ok ? 'success' : 'danger'}`} role="status">{msg.t}</div>}
     {!ready ? <div className="panel" aria-busy="true" aria-label="Memuat informasi acara"><Skel w="30%" className="mb-2"/><Skel h="2.4rem" r="8px" className="mb-3"/><Skel w="30%" className="mb-2"/><Skel h="2.4rem" r="8px" className="mb-3"/><Skel h="22rem" r="12px"/></div> :
     <form onSubmit={save} className="panel fgrid">
@@ -38,7 +38,7 @@ export default function Seminar() {
           <input id="maps" className={'form-control' + (f.mapsUrl && !maps ? ' is-invalid' : maps ? ' is-valid' : '')} inputMode="url" autoComplete="off" placeholder="Atau tempel tautan Google Maps / koordinat -6.9175, 107.6191" value={f.mapsUrl} onChange={paste}/>
           {maps && <a className="btn btn-outline-primary" href={maps} target="_blank" rel="noopener noreferrer">Uji di Google Maps</a>}
           {f.mapsUrl && !maps && <div className="invalid-feedback">Bukan tautan Google Maps yang valid. Gunakan peta di atas, atau tombol Bagikan di Google Maps.</div>}</div>
-        <div className="form-text">Titik ini yang dikirim ke peserta lewat WhatsApp dan halaman tiket. Bila Anda menempel tautan pendek (maps.app.goo.gl), pin di peta dihapus karena koordinatnya tidak bisa dibaca, tetapi tautannya tetap dipakai. Gunakan <b>Uji di Google Maps</b> untuk memastikan titiknya benar.</div></div>
+        <div className="form-text">Titik ini yang dikirim ke peserta lewat WhatsApp dan halaman undangan. Bila Anda menempel tautan pendek (maps.app.goo.gl), pin di peta dihapus karena koordinatnya tidak bisa dibaca, tetapi tautannya tetap dipakai. Gunakan <b>Uji di Google Maps</b> untuk memastikan titiknya benar.</div></div>
       <div className="s6"><label className="form-label">Deskripsi</label><textarea className="form-control" rows="3" value={f.description} onChange={set('description')}/></div>
       <div className="s6"><button className="btn btn-primary">Simpan</button></div></form>}</>
 }

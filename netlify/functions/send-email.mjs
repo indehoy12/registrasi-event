@@ -1,8 +1,7 @@
-// Mengirim tiket lewat email (Gmail SMTP). Email membawa tiket lengkap (rincian kegiatan + QR sebagai gambar); WhatsApp hanya mengarahkan peserta ke email ini.
+// Mengirim undangan lewat email (Gmail SMTP). Email membawa undangan lengkap (rincian kegiatan, tautan Google Maps, dan QR sebagai gambar); WhatsApp hanya mengarahkan peserta ke email ini.
 // Environment variable Netlify: GMAIL_USER (alamat Gmail pengirim), GMAIL_APP_PASSWORD (sandi aplikasi 16 karakter), MAIL_FROM_NAME (opsional).
 import nodemailer from 'nodemailer'
 import QRCode from 'qrcode'
-import { petaPng, koordinat } from '../lib/peta.mjs'
 import { json, siapkan, tandaiTiket, isiPesan, untukTeksBiasa, untukHtml, namaPengirim, PERINGATAN_STATUS } from '../lib/common.mjs'
 
 export default async (req) => {
@@ -13,8 +12,6 @@ export default async (req) => {
 
   const { teks, title, label } = isiPesan({ pf, sf, maps, base, ticketId, adaGambar: true })
   const qr = await QRCode.toBuffer(ticketId, { width: 700, margin: 2 })
-  // Peta statis titik lokasi (bila koordinat diketahui). Gagal membuat peta tidak menggagalkan email.
-  const xy = koordinat(sf), peta = xy ? await petaPng(xy.lat, xy.lng) : null
   // Bersihkan isian dari spasi, tanda kutip, dan karakter tak terlihat yang sering ikut tersalin.
   const user = process.env.GMAIL_USER.trim().replace(/^["']|["']$/g, '').trim(), dari = namaPengirim()
   const pass = process.env.GMAIL_APP_PASSWORD.replace(/[^A-Za-z0-9]/g, '')
@@ -24,10 +21,9 @@ export default async (req) => {
   try {
     await smtp.sendMail({
       from: { name: dari, address: user }, to, replyTo: user,
-      subject: `Tiket ${title}${label ? ' ' + label : ''} - ${pf.institution?.stringValue || pf.name?.stringValue || ''}`.trim(),
-      text: untukTeksBiasa(teks), html: untukHtml(teks, { cid: 'qr-tiket', petaCid: peta ? 'peta-lokasi' : '', maps }),
-      attachments: [{ filename: 'tiket-qr.png', content: qr, contentType: 'image/png', cid: 'qr-tiket' },
-        ...(peta ? [{ filename: 'peta-lokasi.png', content: peta, contentType: 'image/png', cid: 'peta-lokasi', contentDisposition: 'inline' }] : [])],
+      subject: `Undangan ${title}${label ? ' ' + label : ''} - ${pf.institution?.stringValue || pf.name?.stringValue || ''}`.trim(),
+      text: untukTeksBiasa(teks), html: untukHtml(teks, { cid: 'qr-undangan' }),
+      attachments: [{ filename: 'undangan-qr.png', content: qr, contentType: 'image/png', cid: 'qr-undangan' }],
     })
   } catch (e) {
     const login = /Invalid login|Username and Password|EAUTH/i.test(String(e.message) + (e.code || ''))

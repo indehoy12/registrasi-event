@@ -1,4 +1,4 @@
-// Mengirim tiket lewat WhatsApp (Fonnte). Token Fonnte hanya ada di server (environment variable Netlify).
+// Mengirim undangan lewat WhatsApp (Fonnte). Token Fonnte hanya ada di server (environment variable Netlify).
 import { json, siapkan, tandaiTiket, isiPesan, isiPesanArahEmail, untukWA, EMAIL_VALID, PERINGATAN_STATUS } from '../lib/common.mjs'
 const FT = process.env.FONNTE_TOKEN
 
@@ -10,7 +10,7 @@ export default async (req) => {
   const target = (wa.startsWith('620') ? '62' + wa.slice(3) : wa.startsWith('0') ? '62' + wa.slice(1) : wa.startsWith('8') ? '62' + wa : wa)
   if (!/^628\d{8,11}$/.test(target)) return json({ error: 'Nomor WhatsApp peserta bukan nomor HP yang valid (harus berawalan 628). Perbaiki di menu Peserta.' }, 400)
   const pesan = (adaGambar) => untukWA(isiPesan({ pf, sf, maps, base, ticketId, adaGambar }).teks)
-  // Bila peserta punya email valid, WhatsApp hanya mengarahkan ke email (tiketnya ada di email). Tanpa email valid, WhatsApp tetap membawa tiket penuh (QR + tautan) supaya peserta tidak tanpa tiket.
+  // Bila peserta punya email valid, WhatsApp hanya mengarahkan ke email (undangannya ada di email). Tanpa email valid, WhatsApp tetap membawa undangan penuh (QR + tautan) supaya peserta tidak tanpa undangan.
   const arahEmail = EMAIL_VALID.test((pf.email?.stringValue || '').trim())
 
   // Coba gambar QR dulu (paket Fonnte Super ke atas); jika ditolak kirim teks + tautan saja.

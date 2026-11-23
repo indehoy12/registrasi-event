@@ -33,7 +33,7 @@ export function beep(kind) {
       o.connect(g); g.connect(ac.destination); o.start(ac.currentTime + t); o.stop(ac.currentTime + t + d) })
   } catch {}
 }
-// Modal hasil scan dengan animasi centang hijau / silang merah (warn = kuning, untuk tiket yang sudah dipakai)
+// Modal hasil scan dengan animasi centang hijau / silang merah (warn = kuning, untuk undangan yang sudah dipakai)
 export function ResultModal({ ok, warn, title, text, onClose }) {
   useEffect(() => { navigator.vibrate?.(ok ? 80 : [120, 60, 120]); beep(ok ? 'ok' : warn ? 'warn' : 'bad'); if (!ok) return; const t = setTimeout(onClose, 2600); return () => clearTimeout(t) }, [])
   return <div className="mdl-back" onMouseDown={e => e.target === e.currentTarget && onClose()}>
@@ -98,6 +98,6 @@ export const Skel = ({ w = '100%', h = '1rem', r, className = '' }) => <span cla
 export const SkelRows = ({ rows = 5, cols = 4 }) => Array.from({ length: rows }, (_, i) => <tr key={i} aria-hidden="true">{Array.from({ length: cols }, (_, j) => <td key={j}><Skel w={j === 0 ? '70%' : '55%'}/></td>)}</tr>)
 export const SkelList = ({ rows = 3 }) => <div aria-busy="true" aria-label="Memuat data">{Array.from({ length: rows }, (_, i) => <div className="recent" key={i}><div style={{ flex: 1 }}><Skel w="60%" className="mb-1"/><Skel w="30%" h=".7rem"/></div><Skel w="3rem" h=".7rem"/></div>)}</div>
 
-// Peringatan bila titik lokasi Maps belum diisi (muncul di Dashboard, Tiket, dan Distribusi)
+// Peringatan bila titik lokasi Maps belum diisi (muncul di Dashboard, Undangan, dan Distribusi)
 export const MapsWarn = ({ loaded, mapsOk }) => loaded && !mapsOk ? <div className="alert alert-warning d-flex gap-2 align-items-start" role="alert"><i className="bi bi-geo-alt-fill fs-5"/>
-  <div><b>Titik lokasi Google Maps belum diisi.</b> Pengiriman tiket lewat WhatsApp ditahan sampai lokasi diisi, supaya peserta tidak tersesat. <Link to="/admin/seminar">Isi sekarang</Link></div></div> : null
+  <div><b>Titik lokasi Google Maps belum diisi.</b> Pengiriman undangan lewat WhatsApp ditahan sampai lokasi diisi, supaya peserta tidak tersesat. <Link to="/admin/seminar">Isi sekarang</Link></div></div> : null

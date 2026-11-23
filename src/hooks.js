@@ -17,7 +17,7 @@ export const waNumber = (n = '') => { let d = String(n).replace(/\D/g, ''); if (
 export const perusahaanTeks = (x) => [x?.institution, x?.bidang].filter(Boolean).join(' · ')
 export const validWa = (n) => /^628\d{8,11}$/.test(n)
 export const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(e)
-export const ticketLink = (id) => `${location.origin}/tiket/${id}`
+export const ticketLink = (id) => `${location.origin}/undangan/${id}`
 export const wait = (ms) => new Promise(r => setTimeout(r, ms))
 // Selama pengiriman massal berjalan (dijalankan dari browser): minta konfirmasi bila tab hendak ditutup dan tahan layar agar tidak mati.
 export function useJagaProses(aktif) {
@@ -30,7 +30,7 @@ export function useJagaProses(aktif) {
     return () => { batal = true; window.removeEventListener('beforeunload', h); document.removeEventListener('visibilitychange', vis); lock?.release().catch(() => {}) }
   }, [aktif])
 }
-// Memicu pengiriman tiket lewat Netlify Function; mengembalikan { via: 'fonnte-gambar' | 'fonnte', note }
+// Memicu pengiriman undangan lewat Netlify Function; mengembalikan { via: 'fonnte-gambar' | 'fonnte', note }
 export async function sendTicketWA(ticketId) {
   const r = await fetch('/.netlify/functions/send-wa', { method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser.getIdToken()}` }, body: JSON.stringify({ ticketId }) })
@@ -42,10 +42,10 @@ export const hariList = (sem = {}) => { const d = [sem.date, sem.date2].filter(B
 export const hariAktif = (days) => { const t = hariKunci(); return days.includes(t) ? t : (days[0] > t ? days[0] : days[days.length - 1]) }
 export const hariLabel = (days, d) => { const tg = /^\d{4}-/.test(d) ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : ''
   return days.length > 1 ? `Hari ${days.indexOf(d) + 1}${tg ? ' · ' + tg : ''}` : (tg || 'Hari ini') }
-// Waktu check-in tiket pada hari tertentu (tiket lama berstatus 'terpakai' dianggap hadir di hari pertama)
+// Waktu check-in undangan pada hari tertentu (undangan lama berstatus 'terpakai' dianggap hadir di hari pertama)
 export const usedOn = (t, d, days) => t?.usedDays?.[d] || (t?.status === 'terpakai' && d === days[0] ? (t.usedAt || true) : null)
 export const ckDay = (c, days) => c.day || days[0]
-// Peserta berbeda tiap hari: kolom "hari" pada peserta dan tiket berisi "1", "2" (atau "1,2"). Kosong = semua hari (perilaku lama).
+// Peserta berbeda tiap hari: kolom "hari" pada peserta dan undangan berisi "1", "2" (atau "1,2"). Kosong = semua hari (perilaku lama).
 export const normHari = (h) => { const n = [...new Set(String(h ?? '').match(/[12]/g) || [])]; return n.length === 1 ? n[0] : '' }
 export const hariPeserta = (x, days) => { const n = [...new Set(String(x?.hari ?? '').match(/[12]/g) || [])].map(Number).filter(i => i <= days.length); return n.length ? n : days.map((_, i) => i + 1) }
 export const hariBoleh = (x, d, days) => { const i = days.indexOf(d); return i < 0 || hariPeserta(x, days).includes(i + 1) }
@@ -53,7 +53,7 @@ export const hariTeks = (x, days) => { if (days.length < 2) return ''; const h =
 // Jumlah peserta yang dijadwalkan pada hari d, ditambah peserta yang sudah dihapus tetapi pernah check-in pada hari itu
 // Aturan sama dengan laporan Excel: dijadwalkan pada hari itu ATAU sudah check-in pada hari itu (mis. hari peserta diubah setelah check-in), termasuk peserta yang sudah dihapus.
 export const totalHari = (ps, cs, d, days) => { const id = new Set(ps.map(p => p.id)), ada = new Set(cs.filter(c => ckDay(c, days) === d).map(c => c.participantId)); return ps.filter(p => hariBoleh(p, d, days) || ada.has(p.id)).length + [...ada].filter(x => !id.has(x)).length }
-// Membatalkan satu check-in dalam satu transaksi. Tiket yang sudah dicabut TIDAK diaktifkan kembali (mis. peserta sudah dihapus).
+// Membatalkan satu check-in dalam satu transaksi. Undangan yang sudah dicabut TIDAK diaktifkan kembali (mis. peserta sudah dihapus).
 export async function batalkanCheckin(c, hari) {
   await runTransaction(db, async (tx) => {
     const tr = doc(db, 'tickets', c.ticketId), t = await tx.get(tr)
@@ -62,7 +62,7 @@ export async function batalkanCheckin(c, hari) {
     tx.delete(doc(db, 'checkins', c.id))
   })
 }
-// Urutan standar daftar peserta di semua menu (Peserta, Tiket QR, Kirim tiket): abjad nama, tanpa membedakan huruf besar/kecil. Sama dengan laporan Excel.
+// Urutan standar daftar peserta di semua menu (Peserta, Undangan QR, Kirim undangan): abjad nama, tanpa membedakan huruf besar/kecil. Sama dengan laporan Excel.
 export const urutNama = (a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'id', { sensitivity: 'base' })
 // Urutan Riwayat kehadiran: per hari (hari ke-1 dulu), lalu abjad nama peserta, lalu waktu check-in.
 export const urutRiwayat = (days) => (a, b) => days.indexOf(ckDay(a, days)) - days.indexOf(ckDay(b, days)) || String(a.participantName || '').localeCompare(String(b.participantName || ''), 'id', { sensitivity: 'base' }) || (a.checkedInAt?.toMillis?.() ?? 0) - (b.checkedInAt?.toMillis?.() ?? 0)
@@ -74,26 +74,26 @@ export async function sendTicketEmail(ticketId) {
 export const tgl = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 export const maskWa = (n = '') => { const d = waNumber(n); return d.length > 7 ? '+' + d.slice(0, 4) + '•'.repeat(d.length - 7) + d.slice(-3) : '' }
 export const maskEmail = (e = '') => { const [u, h] = String(e).split('@'); return h ? u.slice(0, 2) + '•••@' + h : '' }
-// Nomor tiket pendek (8 karakter) yang tampil di tiket peserta; dipakai untuk input manual oleh petugas.
+// Nomor undangan pendek (8 karakter) yang tampil di undangan peserta; dipakai untuk input manual oleh petugas.
 export const ticketCode = (id = '') => String(id).replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase()
 export const showCode = (id) => { const c = ticketCode(id); return c.length === 8 ? c.slice(0, 4) + ' ' + c.slice(4) : c }
 // Penyamaan karakter yang mirip (O/0, I/L/1) agar salah ketik tidak menggagalkan pencarian
 export const normCode = (s = '') => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1')
 // Pencarian langsung per kata: setiap kata yang diketik harus ada di teks yang tampil di halaman itu.
-// Nomor HP: 08... juga cocok dengan data 628...; nomor tiket dicocokkan terpisah (huruf mirip O/0, I/L/1 disamakan) mulai 3 karakter atau bila ada angka,
-// supaya mengetik satu-dua huruf nama tidak memunculkan peserta hanya karena nomor tiketnya.
+// Nomor HP: 08... juga cocok dengan data 628...; nomor undangan dicocokkan terpisah (huruf mirip O/0, I/L/1 disamakan) mulai 3 karakter atau bila ada angka,
+// supaya mengetik satu-dua huruf nama tidak memunculkan peserta hanya karena nomor undangannya.
 export const cariCocok = (q, teks, kode = '') => {
   const kata = String(q || '').toLowerCase().split(/\s+/).filter(Boolean); if (!kata.length) return true
   const t = String(teks || '').toLowerCase(), nk = kode ? normCode(kode) : ''
   return kata.every(k => t.includes(k) || (/^\+?[\d-]{5,}$/.test(k) && t.includes(waNumber(k))) || (nk && (k.length >= 3 || /\d/.test(k)) && normCode(k) && nk.includes(normCode(k)))) }
-// Menerima isi QR, tautan tiket, atau nomor tiket. Mengembalikan { token } (kode panjang) atau { code } (8 karakter) atau { error }.
+// Menerima isi QR, tautan undangan, atau nomor undangan. Mengembalikan { token } (kode panjang) atau { code } (8 karakter) atau { error }.
 export const parseTicketInput = (raw = '') => {
-  let s = String(raw).trim(); if (!s) return { error: 'Ketik nomor tiket terlebih dahulu.' }
-  const m = s.match(/\/tiket\/([\w-]+)/); if (m) s = m[1]
+  let s = String(raw).trim(); if (!s) return { error: 'Ketik nomor undangan terlebih dahulu.' }
+  const m = s.match(/\/(?:undangan|tiket)\/([\w-]+)/); if (m) s = m[1]
   s = s.replace(/[?#].*$/, '')
   if (/^[\w-]{16,80}$/.test(s)) return { token: s }
   const c = normCode(s)
-  if (c.length !== 8) return { error: 'Nomor tiket terdiri dari 8 huruf/angka, contoh: RHEH NH0K.' }
+  if (c.length !== 8) return { error: 'Nomor undangan terdiri dari 8 huruf/angka, contoh: RHEH NH0K.' }
   return { code: c }
 }
 export const jam = (t) => t?.toDate ? t.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(':', '.') : ''

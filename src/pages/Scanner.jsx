@@ -21,29 +21,29 @@ export default function Scanner() {
   const dayRef = useRef(day), daysRef = useRef(days), semRef = useRef(semLoaded); dayRef.current = day; daysRef.current = days; semRef.current = semLoaded
   const st = (t) => t.status === 'dicabut' ? 'dicabut' : !hariBoleh(t, day, days) ? 'lain' : usedOn(t, day, days) ? 'terpakai' : 'aktif'
 
-  // Daftar tiket (live) dipakai untuk pencarian nomor tiket dan penghitung kehadiran
+  // Daftar undangan (live) dipakai untuk pencarian nomor undangan dan penghitung kehadiran
   useEffect(() => onSnapshot(collection(db, 'tickets'),
     s => { setTickets(s.docs.map(d => ({ id: d.id, ...d.data() }))); setListErr(false); setTkLoaded(true) },
-    e => { console.error('Gagal membaca tiket:', e.code); setListErr(true); setTkLoaded(true) }), [])
+    e => { console.error('Gagal membaca undangan:', e.code); setListErr(true); setTkLoaded(true) }), [])
 
   ckRef.current = checkins
   const aktif = tickets.filter(t => t.status !== 'dicabut' && hariBoleh(t, day, days)), hadir = aktif.filter(t => usedOn(t, day, days)).length
 
-  // Pesan jelas untuk setiap status tiket
+  // Pesan jelas untuk setiap status undangan
   const cekStatus = (t) => {
     const d = dayRef.current, ds = daysRef.current
-    if (t.status === 'dicabut') return `Tiket atas nama ${t.participantName} sudah dinonaktifkan panitia.`
-    if (!hariBoleh(t, d, ds)) return `Tiket atas nama ${t.participantName} hanya berlaku untuk hari ke-${hariPeserta(t, ds).join(' dan ')}, bukan hari ke-${ds.indexOf(d) + 1}.`
+    if (t.status === 'dicabut') return `Undangan atas nama ${t.participantName} sudah dinonaktifkan panitia.`
+    if (!hariBoleh(t, d, ds)) return `Undangan atas nama ${t.participantName} hanya berlaku untuk hari ke-${hariPeserta(t, ds).join(' dan ')}, bukan hari ke-${ds.indexOf(d) + 1}.`
     const u = usedOn(t, d, ds)
     if (u) {
       const c = ckRef.current.find(x => x.ticketId === t.id && ckDay(x, ds) === d)
       const siapa = c?.isRepresentative ? ` (diwakili ${c.representativeName})` : ''
-      return `Tiket atas nama ${t.participantName} sudah digunakan${ds.length > 1 ? ` pada hari ke-${ds.indexOf(d) + 1}` : ''}${u.toDate ? ' pukul ' + jam(u) : ''}${siapa}.`
+      return `Undangan atas nama ${t.participantName} sudah digunakan${ds.length > 1 ? ` pada hari ke-${ds.indexOf(d) + 1}` : ''}${u.toDate ? ' pukul ' + jam(u) : ''}${siapa}.`
     }
     return ''
   }
 
-  // Satu langkah: tiket valid langsung dicatat hadir (transaksi mencegah dobel check-in dari dua perangkat)
+  // Satu langkah: undangan valid langsung dicatat hadir (transaksi mencegah dobel check-in dari dua perangkat)
   const checkIn = async (id, via) => {
     try {
       // Hari check-in disimpan sebagai tanggal. Tanpa tanggal acara, data akan tersimpan dengan kunci sementara dan tidak cocok lagi setelah tanggal diisi.
@@ -51,12 +51,12 @@ export default function Scanner() {
       const ref = doc(db, 'tickets', id), cref = doc(collection(db, 'checkins')); let info
       await runTransaction(db, async (tx) => {
         const t = await tx.get(ref)
-        if (!t.exists()) throw new Error('Tiket tidak dikenal.')
+        if (!t.exists()) throw new Error('Undangan tidak dikenal.')
         const d = t.data()
         const dy = dayRef.current
-        if (d.status === 'dicabut') throw new Error('Tiket sudah dinonaktifkan.')
-        if (!hariBoleh(d, dy, daysRef.current)) throw new Error(`Tiket ini hanya berlaku untuk hari ke-${hariPeserta(d, daysRef.current).join(' dan ')}, bukan hari ke-${daysRef.current.indexOf(dy) + 1}.`)
-        if (usedOn(d, dy, daysRef.current)) throw new Error('Tiket ini sudah tercatat hadir pada hari ini (mungkin baru saja dipindai di perangkat lain).')
+        if (d.status === 'dicabut') throw new Error('Undangan sudah dinonaktifkan.')
+        if (!hariBoleh(d, dy, daysRef.current)) throw new Error(`Undangan ini hanya berlaku untuk hari ke-${hariPeserta(d, daysRef.current).join(' dan ')}, bukan hari ke-${daysRef.current.indexOf(dy) + 1}.`)
+        if (usedOn(d, dy, daysRef.current)) throw new Error('Undangan ini sudah tercatat hadir pada hari ini (mungkin baru saja dipindai di perangkat lain).')
         tx.update(ref, { status: 'aktif', [`usedDays.${dy}`]: serverTimestamp(), usedAt: serverTimestamp(), usedBy: auth.currentUser.email })
         tx.set(cref, { participantId: d.participantId, participantName: d.participantName, ticketId: id, ticketCode: ticketCode(id), via, day: dy,
           isRepresentative: false, representativeName: null, officerEmail: auth.currentUser.email, checkedInAt: serverTimestamp() })
@@ -82,46 +82,46 @@ export default function Scanner() {
       if (lock.current) return; lock.current = true
       const p = parseTicketInput(text)
       try {
-        if (!p.token) throw new Error('QR ini bukan tiket seminar yang terdaftar.')
+        if (!p.token) throw new Error('QR ini bukan undangan seminar yang terdaftar.')
         const snap = await getDoc(doc(db, 'tickets', p.token))
-        if (!snap.exists()) throw new Error('QR ini bukan tiket seminar yang terdaftar.')
+        if (!snap.exists()) throw new Error('QR ini bukan undangan seminar yang terdaftar.')
         const t = { id: snap.id, ...snap.data() }, msg = cekStatus(t)
         if (msg) throw Object.assign(new Error(msg), { warn: !!usedOn(t, dayRef.current, daysRef.current) })
         await checkIn(t.id, 'qr')
-      } catch (e) { setRes({ ok: false, warn: !!e.warn, title: e.warn ? 'Tiket sudah dipakai' : 'Tiket tidak valid', text: e.message }) }
+      } catch (e) { setRes({ ok: false, warn: !!e.warn, title: e.warn ? 'Undangan sudah dipakai' : 'Undangan tidak valid', text: e.message }) }
     }).then(() => setCamReady(true)).catch(() => setCamErr('Kamera tidak dapat dibuka. Izinkan akses kamera di browser lalu tekan "Coba lagi", atau gunakan tab Input manual.'))
     return () => { started.then(() => s.isScanning && s.stop()).then(() => s.clear()).catch(() => {}) }
   }, [mode, camKey])
 
   const ganti = (m) => { if (m === mode) return; setMode(m); setManualErr(''); if (m === 'manual') setTimeout(() => codeRef.current?.focus(), 50) }
 
-  // Pencarian langsung (live): hasil muncul setiap ketikan; nama, perusahaan, nomor tiket, atau tautan tiket. Satu sentuhan = check-in.
+  // Pencarian langsung (live): hasil muncul setiap ketikan; nama, perusahaan, nomor undangan, atau tautan undangan. Satu sentuhan = check-in.
   const q = code.trim(), qn = normCode(q), ql = q.toLowerCase()
-  const isLink = /\/tiket\/|^[\w-]{16,80}$/.test(q)
+  const isLink = /\/(?:undangan|tiket)\/|^[\w-]{16,80}$/.test(q)
   const hits = !q ? [] : isLink ? tickets.filter(t => t.id === parseTicketInput(q).token)
     : tickets.filter(t => (t.participantName || '').toLowerCase().includes(ql) || (t.institution || '').toLowerCase().includes(ql) || (t.bidang || '').toLowerCase().includes(ql) || (qn.length >= 3 && normCode(ticketCode(t.id)).includes(qn)))
       .sort((x, y) => (x.participantName || '').localeCompare(y.participantName || ''))
   const pilih = async (t) => {
     if (busy) return
     const msg = cekStatus(t)
-    if (msg) { lock.current = true; return setRes({ ok: false, warn: st(t) === 'terpakai', title: st(t) === 'terpakai' ? 'Tiket sudah dipakai' : 'Tiket tidak valid', text: msg }) }
+    if (msg) { lock.current = true; return setRes({ ok: false, warn: st(t) === 'terpakai', title: st(t) === 'terpakai' ? 'Undangan sudah dipakai' : 'Undangan tidak valid', text: msg }) }
     lock.current = true; setBusy(true); await checkIn(t.id, 'manual'); setBusy(false)
   }
   const cari = (e) => { e.preventDefault(); if (hits.length === 1) pilih(hits[0]) }
 
-  // Salah scan: tiket kembali aktif dan catatan hadir dihapus (hanya petugas yang membuatnya, dalam 10 menit; dijaga firestore.rules)
+  // Salah scan: undangan kembali aktif dan catatan hadir dihapus (hanya petugas yang membuatnya, dalam 10 menit; dijaga firestore.rules)
   const batalkan = async (c) => {
     await batalkanCheckin(c, ckDay(c, daysRef.current))
     addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'batalkan check-in', participant: c.participantName }).catch(() => {})
   }
   const flash = (t) => { setNote(t); setTimeout(() => setNote(''), 6000) }
   // Dari popup (tepat setelah scan)
-  const batal = async () => { await batalkan({ id: res.checkinId, ticketId: res.ticketId, day: res.day, participantName: res.name }); flash(`Check-in ${res.name} dibatalkan. Tiketnya bisa dipindai lagi.`); close() }
+  const batal = async () => { await batalkan({ id: res.checkinId, ticketId: res.ticketId, day: res.day, participantName: res.name }); flash(`Check-in ${res.name} dibatalkan. Undangannya bisa dipindai lagi.`); close() }
   // Dari daftar "Check-in terakhir" (setelah popup ditutup), dengan konfirmasi
   const batalDaftar = async (c) => {
     lock.current = true
     const ya = await ask({ title: 'Batalkan check-in?', text: `Check-in ${c.participantName} dihapus dan QR-nya bisa dipindai lagi.`, ok: 'Batalkan check-in', danger: true, icon: 'arrow-counterclockwise' })
-    if (ya) { try { await batalkan(c); flash(`Check-in ${c.participantName} dibatalkan. Tiketnya bisa dipindai lagi.`) } catch { flash('Gagal membatalkan. Waktu koreksi 10 menit mungkin sudah lewat, hubungi admin.') } }
+    if (ya) { try { await batalkan(c); flash(`Check-in ${c.participantName} dibatalkan. Undangannya bisa dipindai lagi.`) } catch { flash('Gagal membatalkan. Waktu koreksi 10 menit mungkin sudah lewat, hubungi admin.') } }
     if (!res) lock.current = false
   }
   const simpanEd = async (e) => {
@@ -142,7 +142,7 @@ export default function Scanner() {
 
   return <>
     <div className="d-flex gap-2 flex-wrap align-items-end">
-      <div className="me-auto"><h1 className="h4">Scan dan check-in{multi && <span className="badge text-bg-success ms-2 align-middle fs-6">Hari ke-{dayNo}</span>}</h1><p className="sub mb-0">Arahkan kamera ke QR tiket. Peserta langsung tercatat hadir.</p></div>
+      <div className="me-auto"><h1 className="h4">Scan dan check-in{multi && <span className="badge text-bg-success ms-2 align-middle fs-6">Hari ke-{dayNo}</span>}</h1><p className="sub mb-0">Arahkan kamera ke QR undangan. Peserta langsung tercatat hadir.</p></div>
       <div className="scan-count" aria-live="polite">{tkLoaded ? <><b>{hadir}</b><span> / {aktif.length}</span><small>sudah check-in</small></> : <Skel w="9rem" h="2rem" r="10px"/>}</div>
     </div>
     {multi && <div className="mt-3"><div className="who" style={{ maxWidth: 420 }} role="radiogroup" aria-label="Hari kegiatan">
@@ -156,26 +156,26 @@ export default function Scanner() {
         {mode === 'kamera' ? <>
           {camErr && <div className="alert alert-danger d-flex gap-2 align-items-center flex-wrap"><span className="flex-fill">{camErr}</span><button className="btn btn-sm btn-outline-danger" onClick={() => setCamKey(k => k + 1)}>Coba lagi</button></div>}
           <div className="reader-wrap"><div id="reader"/>{!camReady && !camErr && <div className="reader-skel" aria-busy="true" aria-label="Membuka kamera"><Skel h="100%" r="14px"/></div>}</div>
-          <p className="small text-muted mt-2 mb-0">QR tidak terbaca atau peserta lupa membawa tiket? Pilih tab <b>Input manual</b> lalu cari berdasarkan nama.</p>
+          <p className="small text-muted mt-2 mb-0">QR tidak terbaca atau peserta lupa membawa undangan? Pilih tab <b>Input manual</b> lalu cari berdasarkan nama.</p>
         </> : <form className="panel" onSubmit={cari}>
-          <label htmlFor="kode" className="form-label fw-semibold">Cari peserta atau nomor tiket</label>
+          <label htmlFor="kode" className="form-label fw-semibold">Cari peserta atau nomor undangan</label>
           <input id="kode" ref={codeRef} type="search" className="form-control form-control-lg" placeholder="Cari nama" value={code} autoComplete="off" autoCapitalize="off" spellCheck="false"
             onChange={e => setCode(e.target.value)}/>
           <div className="form-text">Hasil muncul saat mengetik. Sentuh nama peserta untuk langsung check-in. Huruf besar atau kecil tidak masalah.</div>
-          {listErr && <div className="alert alert-danger mt-2 mb-0">Pencarian belum bisa dipakai karena akses data tiket ditolak. Minta Super Admin mem-publish firestore.rules versi terbaru.</div>}
+          {listErr && <div className="alert alert-danger mt-2 mb-0">Pencarian belum bisa dipakai karena akses data undangan ditolak. Minta Super Admin mem-publish firestore.rules versi terbaru.</div>}
           {!listErr && q && !tkLoaded && <div className="mt-2" aria-busy="true"><Skel h="3.6rem" r="12px" className="mb-2"/><Skel h="3.6rem" r="12px"/></div>}
           {!listErr && q && tkLoaded && <div className="hits mt-2" role="listbox" aria-label="Hasil pencarian">
             {hits.slice(0, 6).map(t => <button type="button" role="option" key={t.id} className={`hit ${st(t)}`} disabled={busy} onClick={() => pilih(t)}>
               <span className="flex-fill text-start"><b>{t.participantName}</b><small className="d-block text-muted">{perusahaanTeks(t) || 'Tanpa perusahaan'} · <span className="tk-code">{showCode(t.id)}</span></small></span>
               {st(t) === 'aktif' ? <span className="hit-go"><i className="bi bi-check2-circle"/> Check-in</span> : st(t) === 'terpakai' ? <span className="badge text-bg-warning">Sudah hadir</span> : st(t) === 'lain' ? <span className="badge text-bg-secondary">Bukan jadwalnya</span> : <span className="badge text-bg-danger">Dinonaktifkan</span>}</button>)}
             {hits.length > 6 && <div className="small text-muted text-center py-1">Masih ada {hits.length - 6} hasil lain. Ketik lebih lengkap untuk mempersempit.</div>}
-            {!hits.length && <div className="text-muted text-center py-3">Tidak ditemukan. Periksa ejaan nama atau nomor tiket.</div>}
+            {!hits.length && <div className="text-muted text-center py-3">Tidak ditemukan. Periksa ejaan nama atau nomor undangan.</div>}
           </div>}
         </form>}
       </div>
       <div>
         <div className="panel text-center text-muted py-4"><i className={`bi bi-${mode === 'kamera' ? 'upc-scan' : 'keyboard'} fs-1 d-block mb-2`}/>
-          {mode === 'kamera' ? 'Menunggu QR tiket…' : 'Menunggu nomor tiket…'}<div className="small">Hasil check-in muncul sebagai popup.</div></div>
+          {mode === 'kamera' ? 'Menunggu QR undangan…' : 'Menunggu nomor undangan…'}<div className="small">Hasil check-in muncul sebagai popup.</div></div>
         <div className="panel">
           <div className="fw-semibold mb-1">Check-in terakhir</div>
           {loadCk && <SkelList rows={3}/>}

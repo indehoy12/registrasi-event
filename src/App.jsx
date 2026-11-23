@@ -21,7 +21,7 @@ import PublicTicket from './pages/PublicTicket'
 const AD = ['superadmin','admin'], ALL = ['superadmin','admin','petugas']
 const GROUPS = [
   ['', [['dashboard','Dashboard','speedometer2',AD]]],
-  ['Persiapan', [['seminar','Info acara','calendar-event',AD],['participants','Peserta','people',AD],['tickets','Tiket QR','ticket-perforated',AD],['distribution','Kirim tiket','whatsapp',AD]]],
+  ['Persiapan', [['seminar','Info acara','calendar-event',AD],['participants','Peserta','people',AD],['tickets','Undangan QR','ticket-perforated',AD],['distribution','Kirim undangan','whatsapp',AD]]],
   ['Hari pelaksanaan', [['scanner','Scan dan check-in','qr-code-scan',ALL],['checkins','Riwayat kehadiran','clock-history',ALL]]],
   ['Kelola', [['reports','Laporan','file-earmark-bar-graph',AD],['settings','Akun dan log','gear',['superadmin']]]],
 ]
@@ -36,10 +36,10 @@ export default function App() {
     setRole(s.exists() && s.data().active === true ? s.data().role : null); setUser(u)
   }), [])
   if (user === undefined) return <div className="p-4" style={{ maxWidth: 720, margin: '0 auto' }} aria-busy="true" aria-label="Memuat"><Skel w="40%" h="1.6rem" className="mb-3"/><Skel h="5rem" r="14px" className="mb-3"/><Skel h="12rem" r="14px"/></div>
-  if (!user || !role) return <Routes><Route path="/tiket/:token" element={<PublicTicket/>}/><Route path="/admin/login" element={<Login noAccess={!!user && !role}/>}/><Route path="*" element={<Navigate to="/admin/login"/>}/></Routes>
+  if (!user || !role) return <Routes><Route path="/undangan/:token" element={<PublicTicket/>}/><Route path="/tiket/:token" element={<PublicTicket/>}/><Route path="/admin/login" element={<Login noAccess={!!user && !role}/>}/><Route path="*" element={<Navigate to="/admin/login"/>}/></Routes>
   const home = role === 'petugas' ? '/admin/scanner' : '/admin/dashboard', P = (roles, el) => roles.includes(role) ? el : <Navigate to={home}/>
   return (<Routes>
-    <Route path="/tiket/:token" element={<PublicTicket/>}/>
+    <Route path="/undangan/:token" element={<PublicTicket/>}/><Route path="/tiket/:token" element={<PublicTicket/>}/>
     <Route path="*" element={
       <div className="shell">
         <div className={`backdrop ${open ? 'show' : ''}`} onClick={() => setOpen(false)}/>

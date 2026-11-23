@@ -8,11 +8,11 @@ const fs = { addDoc, collection, deleteField, doc, getDocs, serverTimestamp, wri
 const KATA = 'HAPUS'
 const MODE = {
   hadir: { judul: 'Reset kehadiran', tombol: 'Reset kehadiran…', ikon: 'arrow-counterclockwise', jalan: resetKehadiran,
-    info: 'Menghapus semua catatan check-in dan mengembalikan semua tiket ke status belum hadir. Peserta dan tiket tetap ada (termasuk status terkirim), jadi tidak perlu import atau kirim ulang. Cocok setelah uji coba scan.',
-    hasil: (r) => `${r.checkin} catatan check-in dihapus dan ${r.tiket} tiket dikembalikan ke status belum hadir.` },
+    info: 'Menghapus semua catatan check-in dan mengembalikan semua undangan ke status belum hadir. Peserta dan undangan tetap ada (termasuk status terkirim), jadi tidak perlu import atau kirim ulang. Cocok setelah uji coba scan.',
+    hasil: (r) => `${r.checkin} catatan check-in dihapus dan ${r.tiket} undangan dikembalikan ke status belum hadir.` },
   semua: { judul: 'Hapus semua data peserta', tombol: 'Hapus semua data…', ikon: 'trash3', jalan: hapusSemua,
-    info: 'Menghapus SEMUA peserta, tiket, dan catatan check-in. Informasi seminar, akun, dan audit log tidak ikut terhapus. Tautan atau QR tiket yang pernah dikirim tidak akan berlaku lagi. Cocok untuk membersihkan data uji sebelum mengimport peserta asli.',
-    hasil: (r) => `${r.peserta} peserta, ${r.tiket} tiket, dan ${r.checkin} catatan check-in dihapus.` },
+    info: 'Menghapus SEMUA peserta, undangan, dan catatan check-in. Informasi seminar, akun, dan audit log tidak ikut terhapus. Tautan atau QR undangan yang pernah dikirim tidak akan berlaku lagi. Cocok untuk membersihkan data uji sebelum mengimport peserta asli.',
+    hasil: (r) => `${r.peserta} peserta, ${r.tiket} undangan, dan ${r.checkin} catatan check-in dihapus.` },
 }
 
 export default function BersihData() {
@@ -25,14 +25,14 @@ export default function BersihData() {
     setBusy(true); setErr(''); setHasil(null); const m = mode
     try { const r = await MODE[m].jalan(fs, db, auth.currentUser.email, (a, b) => setProg(`${a} dari ${b} operasi selesai.`)); setHasil({ teks: MODE[m].hasil(r) }); setMode(null); setKata('') }
     catch (ex) { setErr(ex.code === 'permission-denied'
-      ? 'Ditolak oleh aturan Firestore (permission-denied). Pastikan firestore.rules terbaru sudah di-Publish; aturan hapus tiket baru ditambahkan untuk fitur ini.'
+      ? 'Ditolak oleh aturan Firestore (permission-denied). Pastikan firestore.rules terbaru sudah di-Publish; aturan hapus undangan baru ditambahkan untuk fitur ini.'
       : 'Gagal: ' + (ex.code || '') + ' ' + (ex.message || ex) + '. Sebagian data mungkin sudah terhapus; jalankan lagi untuk menyelesaikannya.') }
     finally { setBusy(false); setProg('') }
   }
   return <section className="card border-danger mt-4" aria-labelledby="bd-t"><div className="card-body">
     <h2 id="bd-t" className="h5 text-danger mb-1"><i className="bi bi-exclamation-triangle me-2"/>Bersihkan data uji</h2>
     <p className="small text-muted mb-2">Gunakan setelah uji coba dan sebelum import peserta asli. Jangan dijalankan saat acara berlangsung. Tindakan ini tidak bisa dibatalkan.</p>
-    <p className="mb-3" aria-live="polite"><b>Data saat ini:</b> {ps.length} peserta · {ts.length} tiket · {cs.length} catatan check-in</p>
+    <p className="mb-3" aria-live="polite"><b>Data saat ini:</b> {ps.length} peserta · {ts.length} undangan · {cs.length} catatan check-in</p>
     <div className="d-flex gap-2 flex-wrap">{Object.entries(MODE).map(([k, m]) =>
       <button key={k} className={'btn btn-sm ' + (mode === k ? 'btn-danger' : 'btn-outline-danger')} disabled={busy || (k === 'hadir' ? !adaHadir : !adaData)} onClick={() => buka(k)}><i className={`bi bi-${m.ikon} me-1`}/>{m.tombol}</button>)}</div>
     {mode && <div className="border border-danger-subtle rounded p-3 mt-3">

@@ -47,7 +47,7 @@ function siapkan({ days, ps, cs, ts, ckDay, showCode, tgl, hariBoleh = () => tru
   const kode = Object.fromEntries(ts.filter(t => t.status !== 'dicabut').map(t => [t.participantId, showCode(t.id)]))
   const idPs = new Set(ps.map(p => p.id)), urut = (a, b) => (a.nama || '').localeCompare(b.nama || '', 'id'), tmap = new Map(ts.map(t => [t.id, t]))
   const cekin = new Map(); cs.forEach(c => { const k = c.participantId + '|' + ckDay(c, days); if (!cekin.has(k)) cekin.set(k, c) })
-  // Peserta yang sudah dihapus: data diambil dari salinan di tiket (bila ada), sisanya kosong
+  // Peserta yang sudah dihapus: data diambil dari salinan di undangan (bila ada), sisanya kosong
   const dihapus = [...new Map(cs.filter(c => !idPs.has(c.participantId)).map(c => { const t = tmap.get(c.ticketId) || {}
     return [c.participantId, { id: c.participantId, nama: c.participantName || '', email: '', hp: '', pimpinan: t.pimpinan || '', domisili: t.domisili || '', wilayah: t.wilayah || '', bidang: t.bidang || '',
       inst: '(peserta sudah dihapus)', kode: c.ticketId ? showCode(c.ticketId) : '-', boleh: (d) => cekin.has(c.participantId + '|' + d) }] })).values()].sort(urut)
@@ -56,10 +56,10 @@ function siapkan({ days, ps, cs, ts, ckDay, showCode, tgl, hariBoleh = () => tru
   return { multi, tanggal, orang, cekin, dihapus, n: orang.length }
 }
 
-// Nama perusahaan untuk baris riwayat check-in: dari data peserta terkini, cadangan dari salinan di tiket
+// Nama perusahaan untuk baris riwayat check-in: dari data peserta terkini, cadangan dari salinan di undangan
 const petaInst = (ps = [], ts = []) => { const p = new Map(ps.map(x => [x.id, x.institution || ''])), t = new Map(ts.map(x => [x.id, x.institution || ''])); return (c) => p.get(c.participantId) || t.get(c.ticketId) || c.institution || '' }
 
-// Data lengkap peserta untuk baris riwayat check-in: dari data peserta terkini, cadangan dari salinan di tiket, lalu dari catatan check-in
+// Data lengkap peserta untuk baris riwayat check-in: dari data peserta terkini, cadangan dari salinan di undangan, lalu dari catatan check-in
 const petaData = (ps = [], ts = []) => { const p = new Map(ps.map(x => [x.id, x])), t = new Map(ts.map(x => [x.id, x]))
   return (c) => { const a = p.get(c.participantId), b = t.get(c.ticketId) || {}, ambil = (k, k2 = k) => (a?.[k2] ?? '') || b[k] || c[k] || ''
     return { inst: ambil('institution'), pimpinan: ambil('pimpinan'), email: a?.email || '', hp: a ? (a.waAsli || a.whatsapp || '') : '', domisili: ambil('domisili'), wilayah: ambil('wilayah'), bidang: ambil('bidang') } } }
@@ -72,13 +72,13 @@ function lembarHari(wb, { sem, days, tgl, hariLabel, orang, cekin, tanggalHari }
   const m = blokJudul(ws, days.length > 1 ? `Laporan Kehadiran Hari ke-${i + 1}` : 'Laporan Kehadiran', { sem, tanggal: /^\d{4}-/.test(d) ? tgl(d) : '' }, [`Dibuat ${dibuat()}`])
   const hdr = m + 1, awal = hdr + 1, akhir = hdr + list.length, z = Math.max(awal, akhir)
   const kolom = [['No', 7], ['Nama PIC/Admin', 30], ['Nama Perusahaan/Nama Individu', 32], ['Nama Pimpinan', 26], ['Email Address', 30], ['No HP PIC/Admin', 18], ['Domisili', 22], ['Wilayah Operasional Perusahaan', 28], ['Jenis Usaha', 24],
-    ['No. tiket', 15], ['Status', 15], ['Hadir sebagai', 17], ['Nama perwakilan', 26], ['Waktu check-in', 19]]
+    ['No. undangan', 15], ['Status', 15], ['Hadir sebagai', 17], ['Nama perwakilan', 26], ['Waktu check-in', 19]]
   const lebar = kolom.map(k => k[1]), idx = (t) => kolom.findIndex(k => k[0] === t), L = (t) => kol(idx(t) + 1)
-  const tengah = ['No', 'No HP PIC/Admin', 'No. tiket', 'Status', 'Hadir sebagai', 'Waktu check-in']
+  const tengah = ['No', 'No HP PIC/Admin', 'No. undangan', 'Status', 'Hadir sebagai', 'Waktu check-in']
   kolom.forEach(([t, w], k) => { ws.getColumn(k + 1).width = w; const c = ws.getCell(hdr, k + 1); c.value = t; header(c) }); ws.getRow(hdr).height = 32
   list.forEach((o, r) => { const row = awal + r, c = cekin.get(o.id + '|' + d)
     const v = [r + 1, o.nama, o.inst, o.pimpinan, o.email, o.hp, o.domisili, o.wilayah, o.bidang, o.kode, c ? 'Hadir' : 'Belum hadir', c ? (c.isRepresentative ? 'Perwakilan' : 'Peserta') : '', c?.representativeName || '', lokal(c?.checkedInAt)]
-    v.forEach((x, k) => { const cell = ws.getCell(row, k + 1), t = kolom[k][0]; cell.value = x; gaya(cell, { h: tengah.includes(t) ? 'center' : 'left', border: kotak, wrap: t !== 'No. tiket', fmt: t === 'No HP PIC/Admin' ? '@' : t === 'Waktu check-in' ? FMT_WAKTU : undefined }) })
+    v.forEach((x, k) => { const cell = ws.getCell(row, k + 1), t = kolom[k][0]; cell.value = x; gaya(cell, { h: tengah.includes(t) ? 'center' : 'left', border: kotak, wrap: t !== 'No. undangan', fmt: t === 'No HP PIC/Admin' ? '@' : t === 'Waktu check-in' ? FMT_WAKTU : undefined }) })
     ws.getRow(row).height = tinggiBaris(v, lebar) })
   // Rekap satu baris di atas tabel (baris kosong sebelum judul tabel), dihitung dari kolom Status dan Hadir sebagai
   const SR = `${L('Status')}${awal}:${L('Status')}${z}`, HR = `${L('Hadir sebagai')}${awal}:${L('Hadir sebagai')}${z}`
@@ -104,13 +104,13 @@ function lembarHari(wb, { sem, days, tgl, hariLabel, orang, cekin, tanggalHari }
 function lembarRiwayat(wb, { sem, days, tanggal, multi, cs, hariLabel, ckDay, showCode, catatan = [], data = () => ({}) }) {
   const rw = wb.addWorksheet('Riwayat check-in', { views: [{ showGridLines: false }] })
   const urutan = [...cs].sort((x, y) => days.indexOf(ckDay(x, days)) - days.indexOf(ckDay(y, days)) || String(x.participantName || '').localeCompare(String(y.participantName || ''), 'id', { sensitivity: 'base' }) || (x.checkedInAt?.toMillis?.() ?? 0) - (y.checkedInAt?.toMillis?.() ?? 0))
-  const kolR = [['No', 7], ['Waktu', 20], ...(multi ? [['Hari', 18]] : []), ['Nama PIC/Admin', 30], ['Nama Perusahaan/Nama Individu', 32], ['Nama Pimpinan', 26], ['Email Address', 30], ['No HP PIC/Admin', 18], ['Domisili', 22], ['Wilayah Operasional Perusahaan', 28], ['Jenis Usaha', 24], ['No. tiket', 15], ['Hadir sebagai', 17], ['Nama perwakilan', 26], ['Cara', 11], ['Petugas', 30]]
+  const kolR = [['No', 7], ['Waktu', 20], ...(multi ? [['Hari', 18]] : []), ['Nama PIC/Admin', 30], ['Nama Perusahaan/Nama Individu', 32], ['Nama Pimpinan', 26], ['Email Address', 30], ['No HP PIC/Admin', 18], ['Domisili', 22], ['Wilayah Operasional Perusahaan', 28], ['Jenis Usaha', 24], ['No. undangan', 15], ['Hadir sebagai', 17], ['Nama perwakilan', 26], ['Cara', 11], ['Petugas', 30]]
   const hr = blokJudul(rw, 'Riwayat Check-in', { sem, tanggal }, [[...catatan, 'Urut per hari, lalu abjad Nama PIC/Admin', `Dibuat ${dibuat()}`].join('   ·   ')]) + 1
   kolR.forEach(([t, w], i) => { rw.getColumn(i + 1).width = w; const c = rw.getCell(hr, i + 1); c.value = t; header(c) }); rw.getRow(hr).height = 32
   urutan.forEach((c, i) => { const row = hr + 1 + i, d = data(c), v = [i + 1, lokal(c.checkedInAt), ...(multi ? [hariLabel(days, ckDay(c, days))] : []), c.participantName || '', d.inst || '', d.pimpinan || '', d.email || '', d.hp || '', d.domisili || '', d.wilayah || '', d.bidang || '', c.ticketId ? showCode(c.ticketId) : '',
       c.isRepresentative ? 'Perwakilan' : 'Peserta', c.representativeName || '', c.via === 'manual' ? 'Manual' : 'QR', c.officerEmail || '']
     v.forEach((x, j) => { const cell = rw.getCell(row, j + 1), kolom = kolR[j][0]; cell.value = x
-      gaya(cell, { border: kotak, wrap: kolom !== 'No. tiket', h: ['No', 'Waktu', 'Hari', 'No HP PIC/Admin', 'No. tiket', 'Hadir sebagai', 'Cara'].includes(kolom) ? 'center' : 'left', fmt: kolom === 'Waktu' ? FMT_WAKTU : kolom === 'No HP PIC/Admin' ? '@' : undefined, ...(kolom === 'Hadir sebagai' && x === 'Perwakilan' ? { bold: true } : {}) }) })
+      gaya(cell, { border: kotak, wrap: kolom !== 'No. undangan', h: ['No', 'Waktu', 'Hari', 'No HP PIC/Admin', 'No. undangan', 'Hadir sebagai', 'Cara'].includes(kolom) ? 'center' : 'left', fmt: kolom === 'Waktu' ? FMT_WAKTU : kolom === 'No HP PIC/Admin' ? '@' : undefined, ...(kolom === 'Hadir sebagai' && x === 'Perwakilan' ? { bold: true } : {}) }) })
     rw.getRow(row).height = tinggiBaris(v, kolR.map(k => k[1])) })
   if (urutan.length) rw.autoFilter = `A${hr}:${kol(kolR.length)}${hr + urutan.length}`
   rw.views = [{ showGridLines: false }]
@@ -119,7 +119,7 @@ function lembarRiwayat(wb, { sem, days, tanggal, multi, cs, hariLabel, ckDay, sh
 }
 
 
-// Lembar "Data Peserta": data lengkap tiap peserta dalam kolom terpisah (nama, perusahaan, pimpinan, kontak, domisili, wilayah, jenis usaha, hari, tiket, status kirim, terdaftar).
+// Lembar "Data Peserta": data lengkap tiap peserta dalam kolom terpisah (nama, perusahaan, pimpinan, kontak, domisili, wilayah, jenis usaha, hari, undangan, status kirim, terdaftar).
 // Diurut abjad Nama PIC/Admin seperti menu lain. Nomor HP disimpan sebagai teks agar angka 0 di depan tidak hilang.
 function lembarPeserta(wb, { sem, days, tanggal, ps, ts, showCode, hariTeks = () => '' }) {
   const ws = wb.addWorksheet('Data Peserta', { views: [{ showGridLines: false }] }), multi = days.length > 1
@@ -127,15 +127,15 @@ function lembarPeserta(wb, { sem, days, tanggal, ps, ts, showCode, hariTeks = ()
   const tk = new Map(ts.filter(t => t.status !== 'dicabut').map(t => [t.participantId, t]))
   const STT = { aktif: 'Aktif', terpakai: 'Terpakai' }
   const kolom = [['No', 6], ['Nama PIC/Admin', 28], ['Nama Perusahaan/Nama Individu', 34], ['Nama Pimpinan', 26], ['Email Address', 32], ['No HP PIC/Admin', 18], ['Domisili', 22], ['Wilayah Operasional Perusahaan', 28], ['Jenis Usaha', 24],
-    ...(multi ? [['Hari', 14]] : []), ['No. tiket', 15], ['Status tiket', 14], ['Terkirim WhatsApp', 17], ['Terkirim Email', 17], ['Terdaftar', 18]]
+    ...(multi ? [['Hari', 14]] : []), ['No. undangan', 15], ['Status undangan', 14], ['Terkirim WhatsApp', 17], ['Terkirim Email', 17], ['Terdaftar', 18]]
   const m = blokJudul(ws, 'Data Peserta', { sem, tanggal }, [`Total ${list.length} peserta`, `Dibuat ${dibuat()}`]), hdr = m
   kolom.forEach(([t, w], i) => { ws.getColumn(i + 1).width = w; const c = ws.getCell(hdr, i + 1); c.value = t; header(c) }); ws.getRow(hdr).height = 32
-  const tengah = ['No', 'No HP PIC/Admin', 'Hari', 'No. tiket', 'Status tiket', 'Terkirim WhatsApp', 'Terkirim Email', 'Terdaftar']
+  const tengah = ['No', 'No HP PIC/Admin', 'Hari', 'No. undangan', 'Status undangan', 'Terkirim WhatsApp', 'Terkirim Email', 'Terdaftar']
   list.forEach((p, r) => { const row = hdr + 1 + r, t = tk.get(p.id)
     const v = [r + 1, p.name || '', p.institution || '', p.pimpinan || '', p.email || '', p.waAsli || p.whatsapp || '', p.domisili || '', p.wilayah || '', p.bidang || '',
       ...(multi ? [hariTeks(p, days)] : []), t ? showCode(t.id) : '-', t ? (STT[t.status] || t.status) : 'Belum dibuat', t?.sentAt ? 'Sudah' : 'Belum', t?.emailSentAt ? 'Sudah' : 'Belum', lokal(p.createdAt)]
     v.forEach((x, i) => { const c = ws.getCell(row, i + 1), k = kolom[i][0]; c.value = x
-      gaya(c, { border: kotak, h: tengah.includes(k) ? 'center' : 'left', wrap: k !== 'No. tiket', fmt: k === 'No HP PIC/Admin' ? '@' : k === 'Terdaftar' ? FMT_WAKTU : undefined, ...(x === 'Belum' || x === 'Belum dibuat' ? { color: C.muted, italic: true } : {}) }) })
+      gaya(c, { border: kotak, h: tengah.includes(k) ? 'center' : 'left', wrap: k !== 'No. undangan', fmt: k === 'No HP PIC/Admin' ? '@' : k === 'Terdaftar' ? FMT_WAKTU : undefined, ...(x === 'Belum' || x === 'Belum dibuat' ? { color: C.muted, italic: true } : {}) }) })
     ws.getRow(row).height = tinggiBaris(v, kolom.map(k => k[1])) })
   if (list.length) ws.autoFilter = `A${hdr}:${kol(kolom.length)}${hdr + list.length}`
   ws.views = [{ showGridLines: false }]
@@ -159,7 +159,7 @@ export function buatLaporan(ExcelJS, { sem = {}, days, ps, cs, ts, hariLabel, ck
   const kS = (i) => base + 1 + per * i        // kolom status untuk hari ke-i (disusul Hadir sebagai, Nama perwakilan, Waktu)
   const lebar = [7, 30, 32, 30, 15]; days.forEach(() => lebar.push(15, 17, 26, 19)); if (multi) lebar.push(14)   // sedikit lebih lebar agar judul tidak tertutup tombol filter
   lebar.forEach((w, i) => { ws.getColumn(i + 1).width = w })
-  const dasar = ['No', 'Nama PIC/Admin', 'Nama Perusahaan/Nama Individu', 'Email Address', 'No. tiket'], sub = ['Status', 'Hadir sebagai', 'Nama perwakilan', 'Waktu check-in']
+  const dasar = ['No', 'Nama PIC/Admin', 'Nama Perusahaan/Nama Individu', 'Email Address', 'No. undangan'], sub = ['Status', 'Hadir sebagai', 'Nama perwakilan', 'Waktu check-in']
     if (multi) {
     for (let c = 1; c <= nKol; c++) header(ws.getCell(hdr - 1, c), 'atas')
     days.forEach((d, i) => { for (let c = kS(i); c < kS(i) + 4; c++) header(ws.getCell(hdr - 1, c), 'atas')
@@ -259,17 +259,17 @@ export function buatLaporanHari(ExcelJS, { sem = {}, days, ps, cs, ts, hariLabel
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Daftar hadir cadangan: Nama PIC/Admin, perusahaan, bidang, nomor tiket, dan kolom paraf yang lega untuk ditulis tangan
+// Daftar hadir cadangan: Nama PIC/Admin, perusahaan, bidang, nomor undangan, dan kolom paraf yang lega untuk ditulis tangan
 export function buatCadangan(ExcelJS, { sem = {}, days, ps, ts, hariLabel, showCode, tgl, hariBoleh = () => true }) {
   const wb = new ExcelJS.Workbook(); wb.creator = 'Registrasi Seminar'; wb.created = new Date()
   const ws = wb.addWorksheet('Daftar hadir', { views: [{ showGridLines: false }] }), multi = days.length > 1
   const tanggal = days.filter(d => /^\d{4}-/.test(d)).map(tgl).join(' dan ')
   const kode = Object.fromEntries(ts.filter(t => t.status !== 'dicabut').map(t => [t.participantId, showCode(t.id)]))
   const list = [...ps].sort((x, y) => (x.name || '').localeCompare(y.name || '', 'id'))
-  const hdr = blokJudul(ws, 'Daftar Hadir', { sem, tanggal }, ['Cadangan bila internet bermasalah. Cocokkan nomor tiket dengan tiket peserta, lalu minta paraf. Perwakilan: tulis namanya di kolom keterangan.', ...(multi ? ['Tanda "—" berarti peserta tidak dijadwalkan pada hari itu.'] : [])])
-  const kolom = [['No', 6], ['Nama PIC/Admin', 28], ['Nama Perusahaan/Nama Individu', 32], ['Email Address', 30], ['Jenis Usaha', 24], ['No. tiket', 15], ...days.map((d) => [multi ? `Paraf\n${hariLabel(days, d)}` : 'Paraf', 22]), ['Keterangan / nama perwakilan', 30]]
+  const hdr = blokJudul(ws, 'Daftar Hadir', { sem, tanggal }, ['Cadangan bila internet bermasalah. Cocokkan nomor undangan dengan undangan peserta, lalu minta paraf. Perwakilan: tulis namanya di kolom keterangan.', ...(multi ? ['Tanda "—" berarti peserta tidak dijadwalkan pada hari itu.'] : [])])
+  const kolom = [['No', 6], ['Nama PIC/Admin', 28], ['Nama Perusahaan/Nama Individu', 32], ['Email Address', 30], ['Jenis Usaha', 24], ['No. undangan', 15], ...days.map((d) => [multi ? `Paraf\n${hariLabel(days, d)}` : 'Paraf', 22]), ['Keterangan / nama perwakilan', 30]]
   kolom.forEach(([t, w], i) => { ws.getColumn(i + 1).width = w; const c = ws.getCell(hdr, i + 1); c.value = t; header(c) }); ws.getRow(hdr).height = 34
-  list.forEach((p, r) => { const row = hdr + 1 + r, v = [r + 1, p.name || '', [p.institution, p.pimpinan].filter(Boolean).join('\n'), p.email || '', p.bidang || '', kode[p.id] || '(belum ada tiket)', ...days.map(d => hariBoleh(p, d, days) ? '' : '—'), '']
+  list.forEach((p, r) => { const row = hdr + 1 + r, v = [r + 1, p.name || '', [p.institution, p.pimpinan].filter(Boolean).join('\n'), p.email || '', p.bidang || '', kode[p.id] || '(belum ada undangan)', ...days.map(d => hariBoleh(p, d, days) ? '' : '—'), '']
     v.forEach((x, i) => { const c = ws.getCell(row, i + 1); c.value = x; gaya(c, { border: kotak, h: i === 0 || i === 5 || x === '—' ? 'center' : 'left', ...(x === '—' ? { color: C.muted } : {}) }) }); ws.getRow(row).height = Math.max(26, tinggiBaris(v, kolom.map(k => k[1]))) })
   ws.views = [{ showGridLines: false }]
   aturCetak(ws, { landscape: multi || days.length > 2, judulBaris: `${hdr}:${hdr}`, footer: 'Daftar Hadir' })

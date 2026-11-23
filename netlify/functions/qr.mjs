@@ -1,4 +1,4 @@
-// Gambar QR publik: /qr/<kode-tiket>.png  (dipakai Fonnte sebagai lampiran gambar)
+// Gambar QR publik: /qr/<kode-undangan>.png  (dipakai Fonnte sebagai lampiran gambar)
 import QRCode from 'qrcode'
 
 export default async (req, context) => {

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'; import { Link } fr
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore'
 import { auth, db } from '../firebase'; import { useColState, useSeminar, tgl, waNumber, validWa, validEmail, maskWa, maskEmail, hariList, hariTeks, normHari, cariCocok, hariPeserta, ckDay, urutNama } from '../hooks'
 const empty = { name:'', email:'', whatsapp:'', institution:'', pimpinan:'', domisili:'', wilayah:'', bidang:'', hari:'', status:'terdaftar' }
-// Tiket menyimpan salinan nama, perusahaan, bidang perusahaan, dan kontak (masked) peserta. Setelah data peserta diubah, salinan itu disamakan.
+// Undangan menyimpan salinan nama, perusahaan, bidang perusahaan, dan kontak (masked) peserta. Setelah data peserta diubah, salinan itu disamakan.
 // Bila WhatsApp/email berganti, status kirim direset agar muncul lagi sebagai "Belum" di menu Distribusi.
 async function syncTiket(id, d, lama) {
   const s = await getDocs(query(collection(db, 'tickets'), where('participantId', '==', id))); if (s.empty) return
@@ -40,14 +40,14 @@ export default function Participants() {
     setFe(er); if (Object.keys(er).length) { document.getElementById('pf-' + Object.keys(er)[0])?.focus(); return }
     setBusy(true)
     try { if (edit) { const lama = rows.find(r => r.id === edit); await updateDoc(doc(db,'participants',edit), d)
-        try { await syncTiket(edit, d, lama) } catch (ex2) { setErr('Data peserta tersimpan, tetapi tiketnya gagal diperbarui (' + (ex2.code || ex2.message) + '). Simpan ulang data peserta ini untuk mencoba lagi.'); setBusy(false); return } }
+        try { await syncTiket(edit, d, lama) } catch (ex2) { setErr('Data peserta tersimpan, tetapi undangannya gagal diperbarui (' + (ex2.code || ex2.message) + '). Simpan ulang data peserta ini untuk mencoba lagi.'); setBusy(false); return } }
       else await addDoc(collection(db,'participants'), { ...d, createdAt: serverTimestamp() })
       if (lagi && !edit) { setOk(d.name + ' berhasil ditambahkan. Silakan isi peserta berikutnya.'); setF({ ...empty, hari: multi ? f.hari : '' }); setFe({}); setBusy(false); setTimeout(() => nameRef.current?.focus(), 0); return }
       setBusy(false); setOpen(false); setF(empty); setEdit(null); setOk('')
     } catch (ex) { setBusy(false); setErr(ex.code === 'permission-denied' ? 'Ditolak oleh aturan Firestore (permission-denied). Periksa dokumen akun di koleksi users (role dan active) dan pastikan firestore.rules sudah di-Publish.' : 'Gagal menyimpan: ' + (ex.code || '') + ' ' + ex.message) } }
-  // Hapus peserta sekaligus mencabut tiketnya (satu batch), agar tidak ada tiket aktif tanpa pemilik
+  // Hapus peserta sekaligus mencabut undangannya (satu batch), agar tidak ada undangan aktif tanpa pemilik
   const hapus = async (r) => {
-    if (!await ask({ title:'Hapus peserta?', text:`${r.name} akan dihapus dari daftar dan tiketnya otomatis dicabut. Riwayat check-in yang sudah ada tetap tersimpan.`, ok:'Hapus', danger:true })) return
+    if (!await ask({ title:'Hapus peserta?', text:`${r.name} akan dihapus dari daftar dan undangannya otomatis dicabut. Riwayat check-in yang sudah ada tetap tersimpan.`, ok:'Hapus', danger:true })) return
     try { const s = await getDocs(query(collection(db,'tickets'), where('participantId','==',r.id))), b = writeBatch(db)
       s.docs.forEach(t => { if (t.data().status !== 'dicabut') b.update(t.ref, { status: 'dicabut' }) })
       b.delete(doc(db,'participants',r.id)); await b.commit()
@@ -78,7 +78,7 @@ export default function Participants() {
       <form className="mdl mdl-form" role="dialog" aria-modal="true" aria-labelledby="pf-t" onSubmit={save} noValidate>
         <div className="pf-head"><div className="pf-ic"><i className={'bi bi-' + (edit ? 'pencil-square' : 'person-plus')}/></div>
           <div className="me-auto"><h2 id="pf-t" className="h5 mb-0">{edit ? 'Ubah data peserta' : 'Tambah peserta'}</h2>
-            <div className="small text-muted">{edit ? 'Perubahan ikut diterapkan ke tiket peserta.' : 'Isi data di bawah. Tanda * wajib diisi.'}</div></div>
+            <div className="small text-muted">{edit ? 'Perubahan ikut diterapkan ke undangan peserta.' : 'Isi data di bawah. Tanda * wajib diisi.'}</div></div>
           <button type="button" className="btn-close" aria-label="Tutup" onClick={tutup}/></div>
         <div className="pf-body">
         {err && <div className="alert alert-danger py-2 small mb-3" role="alert">{err}</div>}
