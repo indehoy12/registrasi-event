@@ -60,7 +60,7 @@ export default function Scanner() {
         tx.update(ref, { status: 'aktif', [`usedDays.${dy}`]: serverTimestamp(), usedAt: serverTimestamp(), usedBy: auth.currentUser.email })
         tx.set(cref, { participantId: d.participantId, participantName: d.participantName, ticketId: id, ticketCode: ticketCode(id), via, day: dy,
           isRepresentative: false, representativeName: null, officerEmail: auth.currentUser.email, checkedInAt: serverTimestamp() })
-        info = { name: d.participantName, institution: perusahaanTeks(d), code: showCode(id), day: dy, hari: daysRef.current.length > 1 ? `Hari ke-${daysRef.current.indexOf(dy) + 1}` : '' }
+        info = { name: d.participantName, institution: String(d.institution || '').trim(), code: showCode(id), day: dy, hari: daysRef.current.length > 1 ? `Hari ke-${daysRef.current.indexOf(dy) + 1}` : '' }
       })
       addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'check-in' + (via === 'manual' ? ' manual' : ''), participant: info.name, representative: null }).catch(() => {})
       setRes({ ok: true, ...info, checkinId: cref.id, ticketId: id })
