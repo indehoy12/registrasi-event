@@ -1,7 +1,7 @@
 import { useDialog, Badge, Skel, SkelRows } from '../ui'
-import { useEffect, useRef, useState } from 'react'; import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'; import { Link } from 'react-router-dom'
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore'
-import { auth, db } from '../firebase'; import { useColState, useSeminar, tgl, waNumber, validWa, validEmail, maskWa, maskEmail, hariList, hariTeks, normHari, cariCocok } from '../hooks'
+import { auth, db } from '../firebase'; import { useColState, useSeminar, tgl, waNumber, validWa, validEmail, maskWa, maskEmail, hariList, hariTeks, normHari, cariCocok, hariPeserta, ckDay, urutNama } from '../hooks'
 const empty = { name:'', email:'', whatsapp:'', institution:'', bidang:'', hari:'', status:'terdaftar' }
 // Tiket menyimpan salinan nama, perusahaan, bidang perusahaan, dan kontak (masked) peserta. Setelah data peserta diubah, salinan itu disamakan.
 // Bila WhatsApp/email berganti, status kirim direset agar muncul lagi sebagai "Belum" di menu Distribusi.
@@ -22,7 +22,7 @@ const Field = ({ id, label, req, icon, hint, error, children }) => <div>
   {error ? <div className="pf-err" role="alert"><i className="bi bi-exclamation-circle"/> {error}</div> : hint && <div className="pf-hint">{hint}</div>}</div>
 export default function Participants() {
   const ask = useDialog(), { sem } = useSeminar(), days = hariList(sem), multi = days.length > 1
-  const [rows, loading] = useColState('participants', 'createdAt'), [f, setF] = useState(empty), [q, setQ] = useState(''), [edit, setEdit] = useState(null), [err, setErr] = useState(''), [fe, setFe] = useState({})
+  const [raw, loading] = useColState('participants'), [cs] = useColState('checkins'), rows = useMemo(() => [...raw].sort(urutNama), [raw]), [f, setF] = useState(empty), [q, setQ] = useState(''), [edit, setEdit] = useState(null), [err, setErr] = useState(''), [fe, setFe] = useState({})
   const [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [ok, setOk] = useState(''), nameRef = useRef(null)
   const bukaTambah = () => { setEdit(null); setErr(''); setOk(''); setFe({}); setF({ ...empty, hari: multi ? '?' : '' }); setOpen(true) }   // hari '?' = belum memilih batch
   const bukaUbah = (r) => { setErr(''); setOk(''); setFe({}); setEdit(r.id); setF({ name: r.name, email: r.email || '', whatsapp: r.waAsli || r.whatsapp || '', institution: r.institution || '', bidang: r.bidang || '', hari: normHari(r.hari), status: r.status || 'terdaftar' }); setOpen(true) }
@@ -53,8 +53,12 @@ export default function Participants() {
       b.delete(doc(db,'participants',r.id)); await b.commit()
       addDoc(collection(db,'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'hapus peserta', participant: r.name }).catch(() => {})
     } catch (ex) { setErr('Gagal menghapus peserta: ' + (ex.code || '') + ' ' + ex.message) } }
-  const exp = async () => { setErr(''); try { const { unduhPeserta } = await import('../excel'); await unduhPeserta({ sem, days, ps: rows.map(r => ({ ...r, whatsapp: r.waAsli || r.whatsapp })), hariTeks, tgl }) } catch (ex) { setErr('Gagal membuat file Excel: ' + (ex.message || ex)) } }
-  const list = rows.filter(r => cariCocok(q.trim(), [r.name, r.email, r.whatsapp, r.waAsli, r.institution, r.bidang, multi ? hariTeks(r, days) : '', r.status || 'terdaftar'].join(' ')))
+  const exp = async () => { setErr(''); try { const { unduhPeserta } = await import('../excel'); await unduhPeserta({ sem, days, ps: rows.map(r => ({ ...r, whatsapp: r.waAsli || r.whatsapp, statusHadir: statusTeks(r) })), hariTeks, tgl }) } catch (ex) { setErr('Gagal membuat file Excel: ' + (ex.message || ex)) } }
+  // Status check-in diambil dari catatan check-in; kegiatan 2 hari: satu status per hari yang dijadwalkan (atau sudah dihadiri)
+  const sudah = useMemo(() => new Set(cs.map(c => c.participantId + '|' + ckDay(c, days))), [cs, days.join()])
+  const hariStatus = (r) => [...new Set([...hariPeserta(r, days), ...days.flatMap((d, i) => sudah.has(r.id + '|' + d) ? [i + 1] : [])])].sort().map(n => ({ n, on: sudah.has(r.id + '|' + days[n - 1]) }))
+  const statusTeks = (r) => hariStatus(r).map(s => (multi ? `Hari ${s.n}: ` : '') + (s.on ? 'Sudah check-in' : 'Belum check-in')).join('; ')
+  const list = rows.filter(r => cariCocok(q.trim(), [r.name, r.email, r.whatsapp, r.waAsli, r.institution, r.bidang, multi ? hariTeks(r, days) : '', statusTeks(r)].join(' ')))
   const inp = (k, p, extra = {}) => <input id={'pf-' + k} className={'form-control' + (fe[k] ? ' is-invalid' : '')} placeholder={p} value={f[k] || ''} autoComplete="off" disabled={busy} onChange={e => ubah(k, e.target.value)} {...extra}/>
   return <><div className="d-flex gap-2 mb-3 flex-wrap"><h1 className="h4 me-auto">Peserta ({loading ? <Skel w="2rem" h="1rem" className="align-middle"/> : rows.length})</h1>
     <button className="btn btn-primary btn-sm" onClick={bukaTambah}><i className="bi bi-plus-lg"/> Tambah peserta</button>
@@ -63,12 +67,13 @@ export default function Participants() {
     {err && !open && <div className="alert alert-danger">{err}</div>}
     <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} aria-label="Cari peserta" placeholder="Cari nama, email, perusahaan, bidang, atau nomor WhatsApp" type="search" autoComplete="off" value={q} onChange={e=>setQ(e.target.value)}/>
       {!loading && q.trim() && <span className="small text-muted" role="status" aria-live="polite">{list.length} dari {rows.length} peserta</span>}</div>
-    <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Nama</th><th>Email</th><th>WhatsApp</th><th>Nama perusahaan</th><th>Bidang perusahaan</th>{multi && <th>Hari</th>}<th>Status</th><th/></tr></thead><tbody>
-      {loading && <SkelRows rows={6} cols={multi ? 8 : 7}/>}
-      {!loading && list.map(r => <tr key={r.id}><td>{r.name}</td><td>{r.email}</td><td>{r.whatsapp}</td><td>{r.institution}</td><td>{r.bidang}</td>{multi && <td>{hariTeks(r, days)}</td>}<td><Badge s={r.status}/></td>
-        <td className="text-end text-nowrap"><button className="btn btn-link btn-sm" onClick={() => bukaUbah(r)}><i className="bi bi-pencil-square"/> Ubah</button>
-        <button className="btn btn-link btn-sm text-danger" onClick={() => hapus(r)}><i className="bi bi-trash3"/> Hapus</button></td></tr>)}
-      {!loading && !list.length && <tr><td colSpan={multi ? 8 : 7} className="text-center text-muted py-4">{rows.length ? 'Tidak ada peserta yang cocok.' : 'Belum ada peserta. Tambahkan manual atau import Excel.'}</td></tr>}</tbody></table></div>
+    <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th style={{ width: '3rem' }}>No</th><th>Nama</th><th>Email</th><th>WhatsApp</th><th>Nama perusahaan</th><th>Bidang perusahaan</th>{multi && <th>Hari</th>}<th>Status check-in</th><th/></tr></thead><tbody>
+      {loading && <SkelRows rows={6} cols={multi ? 9 : 8}/>}
+      {!loading && list.map((r, i) => <tr key={r.id}><td className="text-muted">{i + 1}</td><td>{r.name}</td><td>{r.email}</td><td>{r.whatsapp}</td><td>{r.institution}</td><td>{r.bidang}</td>{multi && <td className="text-nowrap">{hariTeks(r, days)}</td>}<td className="text-nowrap">{hariStatus(r).map(s => <div key={s.n}><span className={'badge rounded-pill fw-medium text-bg-' + (s.on ? 'success' : 'secondary')}>{multi ? `Hari ${s.n}: ` : ''}{s.on ? 'Sudah check-in' : 'Belum check-in'}</span></div>)}</td>
+        <td style={{ width: '1%' }}><div className="d-flex flex-column align-items-center gap-1">
+          <button type="button" className="btn btn-link p-1 lh-1" style={{ fontSize: '1.15rem' }} title="Ubah" aria-label={`Ubah ${r.name}`} onClick={() => bukaUbah(r)}><i className="bi bi-pencil-square"/></button>
+          <button type="button" className="btn btn-link text-danger p-1 lh-1" style={{ fontSize: '1.15rem' }} title="Hapus" aria-label={`Hapus ${r.name}`} onClick={() => hapus(r)}><i className="bi bi-trash3"/></button></div></td></tr>)}
+      {!loading && !list.length && <tr><td colSpan={multi ? 9 : 8} className="text-center text-muted py-4">{rows.length ? 'Tidak ada peserta yang cocok.' : 'Belum ada peserta. Tambahkan manual atau import Excel.'}</td></tr>}</tbody></table></div>
     {open && <div className="mdl-back" onMouseDown={e => e.target === e.currentTarget && tutup()}>
       <form className="mdl mdl-form" role="dialog" aria-modal="true" aria-labelledby="pf-t" onSubmit={save} noValidate>
         <div className="pf-head"><div className="pf-ic"><i className={'bi bi-' + (edit ? 'pencil-square' : 'person-plus')}/></div>

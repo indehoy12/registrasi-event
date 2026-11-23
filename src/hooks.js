@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { collection, doc, onSnapshot, query, orderBy } from 'firebase/firestore'
+import { collection, deleteField, doc, onSnapshot, query, orderBy, runTransaction } from 'firebase/firestore'
 import { auth, db } from './firebase'
 // Data langsung (realtime): berubah otomatis tanpa refresh. Mengembalikan [rows, loading] untuk tampilan skeleton.
 export function useColState(name, order) {
@@ -51,7 +51,21 @@ export const hariPeserta = (x, days) => { const n = [...new Set(String(x?.hari ?
 export const hariBoleh = (x, d, days) => { const i = days.indexOf(d); return i < 0 || hariPeserta(x, days).includes(i + 1) }
 export const hariTeks = (x, days) => { if (days.length < 2) return ''; const h = hariPeserta(x, days); return h.length === days.length ? 'Kedua hari' : 'Hari ke-' + h.join(', ') }
 // Jumlah peserta yang dijadwalkan pada hari d, ditambah peserta yang sudah dihapus tetapi pernah check-in pada hari itu
-export const totalHari = (ps, cs, d, days) => { const id = new Set(ps.map(p => p.id)); return ps.filter(p => hariBoleh(p, d, days)).length + new Set(cs.filter(c => ckDay(c, days) === d && !id.has(c.participantId)).map(c => c.participantId)).size }
+// Aturan sama dengan laporan Excel: dijadwalkan pada hari itu ATAU sudah check-in pada hari itu (mis. hari peserta diubah setelah check-in), termasuk peserta yang sudah dihapus.
+export const totalHari = (ps, cs, d, days) => { const id = new Set(ps.map(p => p.id)), ada = new Set(cs.filter(c => ckDay(c, days) === d).map(c => c.participantId)); return ps.filter(p => hariBoleh(p, d, days) || ada.has(p.id)).length + [...ada].filter(x => !id.has(x)).length }
+// Membatalkan satu check-in dalam satu transaksi. Tiket yang sudah dicabut TIDAK diaktifkan kembali (mis. peserta sudah dihapus).
+export async function batalkanCheckin(c, hari) {
+  await runTransaction(db, async (tx) => {
+    const tr = doc(db, 'tickets', c.ticketId), t = await tx.get(tr)
+    if (t.exists()) { const d = t.data(), pernah = !!d.usedDays?.[hari] || d.status === 'terpakai'
+      if (pernah) { const u = { [`usedDays.${hari}`]: deleteField() }; if (d.status !== 'dicabut') u.status = 'aktif'; tx.update(tr, u) } }
+    tx.delete(doc(db, 'checkins', c.id))
+  })
+}
+// Urutan standar daftar peserta di semua menu (Peserta, Tiket QR, Kirim tiket): abjad nama, tanpa membedakan huruf besar/kecil. Sama dengan laporan Excel.
+export const urutNama = (a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'id', { sensitivity: 'base' })
+// Urutan Riwayat kehadiran: per hari (hari ke-1 dulu), lalu abjad nama peserta, lalu waktu check-in.
+export const urutRiwayat = (days) => (a, b) => days.indexOf(ckDay(a, days)) - days.indexOf(ckDay(b, days)) || String(a.participantName || '').localeCompare(String(b.participantName || ''), 'id', { sensitivity: 'base' }) || (a.checkedInAt?.toMillis?.() ?? 0) - (b.checkedInAt?.toMillis?.() ?? 0)
 export async function sendTicketEmail(ticketId) {
   const r = await fetch('/.netlify/functions/send-email', { method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser.getIdToken()}` }, body: JSON.stringify({ ticketId }) })

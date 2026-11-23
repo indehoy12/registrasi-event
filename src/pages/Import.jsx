@@ -20,13 +20,15 @@ export default function Import() {
       const heads = new Set(j.flatMap(x => Object.keys(x)).map(norm))
       if (!ALIAS.name.some(a => heads.has(a))) throw new Error('Kolom Nama tidak ditemukan di baris pertama. Gunakan template (tombol Unduh template).')
       const seen = new Set(existing.map(r => waNumber(r.whatsapp))), ok = [], badRows = []; let dup = 0
+      // Peserta tanpa WhatsApp dianggap duplikat bila nama, email, dan perusahaan sama persis (email perusahaan boleh dipakai beberapa orang berbeda)
+      const kunci2 = (r) => [r.name, r.email, r.institution].map(v => String(v || '').trim().toLowerCase()).join('|'), seen2 = new Set(existing.filter(r => !waNumber(r.whatsapp)).map(kunci2))
       j.forEach((x, i) => { const r = { name: String(ambil(x, 'name') || '').trim(), email: String(ambil(x, 'email') || '').trim(), whatsapp: waNumber(String(ambil(x, 'whatsapp') || '')), waAsli: String(ambil(x, 'whatsapp') || '').trim(), institution: String(ambil(x, 'institution') || '').trim(), bidang: String(ambil(x, 'bidang') || '').trim() }, line = i + 2, hv = parseHari(ambil(x, 'hari')); r.hari = hv ?? ''
         if (!r.name && !r.whatsapp && !r.email) return
         if (!r.name) return badRows.push(`Baris ${line}: nama kosong`)
         if (hv === null) return badRows.push(`Baris ${line} (${r.name}): kolom Hari harus 1, 2, atau kosong (kedua hari)`)
         if (r.whatsapp && !validWa(r.whatsapp)) return badRows.push(`Baris ${line} (${r.name}): nomor WhatsApp bukan nomor HP (harus berawalan 08 atau 628)`)
         if (r.email && !validEmail(r.email)) return badRows.push(`Baris ${line} (${r.name}): format email tidak valid`)
-        if (r.whatsapp && seen.has(key(r))) dup++; else { if (r.whatsapp) seen.add(key(r)); ok.push(r) } })
+        if (r.whatsapp ? seen.has(key(r)) : seen2.has(kunci2(r))) dup++; else { if (r.whatsapp) seen.add(key(r)); else seen2.add(kunci2(r)); ok.push(r) } })
       setAdaHari(ALIAS.hari.some(a => heads.has(a))); setRows(ok); setSkipped(dup); setBad(badRows)
     } catch (ex) { setErr('File tidak bisa dibaca: ' + (ex.message || ex)) }
     setReading(false); e.target.value = '' }
@@ -47,7 +49,7 @@ export default function Import() {
     <p className="text-muted">Kolom wajib: Nama saja. Email, WhatsApp, Nama Perusahaan, dan Bidang Perusahaan boleh kosong. Bila kegiatan 2 hari dan pesertanya berbeda tiap hari, isi kolom <b>Hari</b> dengan 1 atau 2 (kosong = hadir di kedua hari). <button className="btn btn-link p-0" onClick={tpl}>Unduh template</button></p>
     {loadEx ? <Skel w="400px" h="2.4rem" r="8px" className="mb-3"/> : <input type="file" accept=".xlsx,.xls,.csv" className="form-control mb-3" style={{maxWidth:400}} disabled={busy} onChange={read}/>}
     {reading && <div aria-busy="true" aria-label="Membaca file"><Skel w="40%" className="mb-2"/><Skel h="1.1rem" className="mb-1"/><Skel h="1.1rem" className="mb-1"/><Skel h="1.1rem" className="mb-3"/></div>}
-    {skipped > 0 && <div className="alert alert-warning">{skipped} baris dilewati karena nomor WhatsApp sama (duplikat).</div>}
+    {skipped > 0 && <div className="alert alert-warning">{skipped} baris dilewati karena duplikat (nomor WhatsApp sama, atau nama, email, dan perusahaan sama untuk peserta tanpa nomor).</div>}
     {bad.length > 0 && <div className="alert alert-danger"><b>{bad.length} baris tidak diimport:</b><ul className="mb-0">{bad.slice(0, 10).map((m, i) => <li key={i}>{m}</li>)}</ul>{bad.length > 10 && <div>…dan {bad.length - 10} baris lainnya.</div>}</div>}
     {rows.length > 0 && multi && !adaHari && <div className="alert alert-warning">Kolom <b>Hari</b> tidak ada di file ini, jadi semua peserta dianggap hadir di <b>kedua hari</b>. Tambahkan kolom Hari (1 atau 2) bila pesertanya berbeda tiap hari.</div>}
     {rows.length > 0 && <><p>{rows.length} baris siap diimport. Pratinjau 5 baris pertama:</p>

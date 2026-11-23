@@ -3,7 +3,7 @@ import { Html5Qrcode } from 'html5-qrcode'
 import { addDoc, collection, deleteField, doc, getDoc, onSnapshot, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { ResultModal, CheckinModal, Skel, SkelList, useDialog } from '../ui'
-import { useColState, useSeminar, perusahaanTeks, jam, showCode, ticketCode, normCode, parseTicketInput, hariList, hariAktif, hariKunci, hariLabel, usedOn, ckDay, hariBoleh, hariPeserta } from '../hooks'
+import { useColState, useSeminar, perusahaanTeks, jam, showCode, ticketCode, normCode, parseTicketInput, hariList, hariAktif, hariKunci, hariLabel, usedOn, ckDay, hariBoleh, hariPeserta, batalkanCheckin } from '../hooks'
 
 const JENDELA = 10 * 60 * 1000   // waktu koreksi check-in oleh petugas (sama dengan firestore.rules)
 export default function Scanner() {
@@ -111,12 +111,7 @@ export default function Scanner() {
 
   // Salah scan: tiket kembali aktif dan catatan hadir dihapus (hanya petugas yang membuatnya, dalam 10 menit; dijaga firestore.rules)
   const batalkan = async (c) => {
-    const dy = ckDay(c, daysRef.current)
-    await runTransaction(db, async (tx) => {
-      const tr = doc(db, 'tickets', c.ticketId), t = await tx.get(tr)
-      if (t.exists() && usedOn(t.data(), dy, daysRef.current)) tx.update(tr, { status: 'aktif', [`usedDays.${dy}`]: deleteField() })
-      tx.delete(doc(db, 'checkins', c.id))
-    })
+    await batalkanCheckin(c, ckDay(c, daysRef.current))
     addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'batalkan check-in', participant: c.participantName }).catch(() => {})
   }
   const flash = (t) => { setNote(t); setTimeout(() => setNote(''), 6000) }

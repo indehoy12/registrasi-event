@@ -1,13 +1,13 @@
 import { useDialog, Badge, SkelRows, MapsWarn, Skel } from '../ui'
 import { useEffect, useState } from 'react'; import QRCode from 'qrcode'; import JSZip from 'jszip'
 import { addDoc, collection, doc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore'
-import { useColState, useSeminar, wait, perusahaanTeks, cariCocok, sendTicketWA, sendTicketEmail, validEmail, maskWa, maskEmail, showCode, useJagaProses, normHari, normCode } from '../hooks'; import { auth, db } from '../firebase'
+import { useColState, useSeminar, wait, perusahaanTeks, cariCocok, sendTicketWA, sendTicketEmail, validEmail, maskWa, maskEmail, showCode, useJagaProses, normHari, normCode, urutNama } from '../hooks'; import { auth, db } from '../firebase'
 const newToken = () => { const b = crypto.getRandomValues(new Uint8Array(24)); return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') }
 const save = (href, name) => { const a = document.createElement('a'); a.href = href; a.download = name; a.click() }
 // Pencarian langsung sesuai kolom tabel ini (nama, nomor tiket, status tiket); nomor tiket ikut dicari mulai 3 karakter (atau bila ada angka)
 // agar mengetik satu-dua huruf nama tidak memunculkan peserta yang namanya tidak cocok hanya karena nomor tiketnya.
 const STATUS = { aktif: 'Aktif', terpakai: 'Terpakai', dicabut: 'Dicabut' }
-const cocok = (p, t, q) => cariCocok(q, `${p.name || ''} ${p.institution || ''} ${p.bidang || ''} ${t ? STATUS[t.status] || t.status : 'Belum dibuat'}`, t ? showCode(t.id) : '')
+const cocok = (p, t, q) => cariCocok(q, `${p.name || ''} ${p.email || ''} ${p.institution || ''} ${p.bidang || ''} ${t ? STATUS[t.status] || t.status : 'Belum dibuat'}`, t ? showCode(t.id) : '')
 
 // Popup QR: tampil langsung saat tombol "Lihat QR" ditekan; Esc atau klik di luar kotak untuk menutup
 function QrModal({ t, onClose, onPng }) {
@@ -29,7 +29,7 @@ function QrModal({ t, onClose, onPng }) {
 }
 export default function Tickets() {
   const ask = useDialog()
-  const [ps, lp] = useColState('participants'), [ts, lt] = useColState('tickets'), loading = lp || lt, { loaded: sl, mapsOk } = useSeminar(), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [auto, setAuto] = useState(false), [autoMail, setAutoMail] = useState(false), [q, setQ] = useState(''), [lihat, setLihat] = useState(null)
+  const [ps0, lp] = useColState('participants'), ps = [...ps0].sort(urutNama), [ts, lt] = useColState('tickets'), loading = lp || lt, { loaded: sl, mapsOk } = useSeminar(), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [auto, setAuto] = useState(false), [autoMail, setAutoMail] = useState(false), [q, setQ] = useState(''), [lihat, setLihat] = useState(null)
   useJagaProses(busy)
   const rincian = (arr) => arr.length ? ` Perhatian: ${arr.slice(0, 5).join('; ')}${arr.length > 5 ? `; dan ${arr.length - 5} lainnya` : ''}.` : ''
   const by = Object.fromEntries(ts.filter(t => t.status !== 'dicabut').map(t => [t.participantId, t]))
@@ -71,12 +71,12 @@ export default function Tickets() {
     <button className={'btn btn-primary btn-sm' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy || !todo.length} onClick={() => gen(todo)}>{`Buat ${todo.length} tiket`}</button></div>
     <MapsWarn loaded={sl} mapsOk={mapsOk}/>
     {msg && <div className="alert alert-info">{msg}</div>}
-    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} type="search" autoComplete="off" aria-label="Cari peserta atau nomor tiket" placeholder="Cari nama, perusahaan, nomor tiket, atau status" value={q} onChange={e => setQ(e.target.value)}/>
+    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} type="search" autoComplete="off" aria-label="Cari peserta atau nomor tiket" placeholder="Cari nama, email, perusahaan, nomor tiket, atau status" value={q} onChange={e => setQ(e.target.value)}/>
       {!loading && q.trim() && <span className="small text-muted" role="status" aria-live="polite">{tampil.length} dari {ps.length} peserta</span>}</div>
-    <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th>Peserta</th><th>No. tiket</th><th>Status tiket</th><th/></tr></thead><tbody>
-      {loading && <SkelRows rows={6} cols={4}/>}
-      {!loading && !tampil.length && <tr><td colSpan={4} className="text-center text-muted py-4">{q.trim() ? <>Tidak ada peserta yang cocok dengan “{q.trim()}”. <button className="btn btn-link btn-sm p-0 align-baseline" onClick={() => setQ('')}>Hapus pencarian</button></> : 'Belum ada peserta.'}</td></tr>}
-      {!loading && tampil.map(p => { const t = by[p.id]; return <tr key={p.id}><td>{p.name}</td><td className="tk-code">{t ? showCode(t.id) : '-'}</td><td><Badge s={t ? t.status : 'belum'}/></td>
+    <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th style={{ width: '3rem' }}>No</th><th>Peserta</th><th>Email</th><th>No. tiket</th><th>Status tiket</th><th/></tr></thead><tbody>
+      {loading && <SkelRows rows={6} cols={6}/>}
+      {!loading && !tampil.length && <tr><td colSpan={6} className="text-center text-muted py-4">{q.trim() ? <>Tidak ada peserta yang cocok dengan “{q.trim()}”. <button className="btn btn-link btn-sm p-0 align-baseline" onClick={() => setQ('')}>Hapus pencarian</button></> : 'Belum ada peserta.'}</td></tr>}
+      {!loading && tampil.map((p, i) => { const t = by[p.id]; return <tr key={p.id}><td className="text-muted">{i + 1}</td><td>{p.name}</td><td className="small">{p.email || <span className="text-muted">-</span>}</td><td className="tk-code">{t ? showCode(t.id) : '-'}</td><td><Badge s={t ? t.status : 'belum'}/></td>
         <td className="text-end">{!t && <button className="btn btn-link btn-sm" disabled={busy} onClick={() => gen([p])}>Buat tiket</button>}
         {t && <button className="btn btn-link btn-sm" onClick={() => setLihat(t.id)}>Lihat QR</button>}
         {t && <button className="btn btn-link btn-sm" onClick={() => png(t, p)}>Unduh PNG</button>}
