@@ -18,15 +18,15 @@ export default function Import() {
     try {
       const wb = XLSX.read(await f.arrayBuffer()), j = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]])
       const heads = new Set(j.flatMap(x => Object.keys(x)).map(norm))
-      if (!ALIAS.name.some(a => heads.has(a)) || !ALIAS.whatsapp.some(a => heads.has(a))) throw new Error('Kolom Nama dan WhatsApp tidak ditemukan di baris pertama. Gunakan template (tombol Unduh template).')
+      if (!ALIAS.name.some(a => heads.has(a))) throw new Error('Kolom Nama tidak ditemukan di baris pertama. Gunakan template (tombol Unduh template).')
       const seen = new Set(existing.map(r => waNumber(r.whatsapp))), ok = [], badRows = []; let dup = 0
       j.forEach((x, i) => { const r = { name: String(ambil(x, 'name') || '').trim(), email: String(ambil(x, 'email') || '').trim(), whatsapp: waNumber(String(ambil(x, 'whatsapp') || '')), waAsli: String(ambil(x, 'whatsapp') || '').trim(), institution: String(ambil(x, 'institution') || '').trim(), bidang: String(ambil(x, 'bidang') || '').trim() }, line = i + 2, hv = parseHari(ambil(x, 'hari')); r.hari = hv ?? ''
         if (!r.name && !r.whatsapp && !r.email) return
         if (!r.name) return badRows.push(`Baris ${line}: nama kosong`)
         if (hv === null) return badRows.push(`Baris ${line} (${r.name}): kolom Hari harus 1, 2, atau kosong (kedua hari)`)
-        if (!validWa(r.whatsapp)) return badRows.push(`Baris ${line} (${r.name}): nomor WhatsApp kosong atau bukan nomor HP (harus berawalan 08 atau 628)`)
+        if (r.whatsapp && !validWa(r.whatsapp)) return badRows.push(`Baris ${line} (${r.name}): nomor WhatsApp bukan nomor HP (harus berawalan 08 atau 628)`)
         if (r.email && !validEmail(r.email)) return badRows.push(`Baris ${line} (${r.name}): format email tidak valid`)
-        if (seen.has(key(r))) dup++; else { seen.add(key(r)); ok.push(r) } })
+        if (r.whatsapp && seen.has(key(r))) dup++; else { if (r.whatsapp) seen.add(key(r)); ok.push(r) } })
       setAdaHari(ALIAS.hari.some(a => heads.has(a))); setRows(ok); setSkipped(dup); setBad(badRows)
     } catch (ex) { setErr('File tidak bisa dibaca: ' + (ex.message || ex)) }
     setReading(false); e.target.value = '' }
@@ -44,7 +44,7 @@ export default function Import() {
     setBusy(false) }
   const tpl = async () => { try { const { unduhTemplate } = await import('../excel'); await unduhTemplate() } catch (ex) { setErr('Gagal membuat template: ' + (ex.message || ex)) } }
   return <><h1 className="h4 mb-3">Import peserta</h1>{msg && <div className="alert alert-success" role="status">{msg}</div>}{err && <div className="alert alert-danger" role="alert">{err}</div>}
-    <p className="text-muted">Kolom wajib: Nama dan WhatsApp. Email, Nama Perusahaan, dan Bidang Perusahaan boleh kosong. Bila kegiatan 2 hari dan pesertanya berbeda tiap hari, isi kolom <b>Hari</b> dengan 1 atau 2 (kosong = hadir di kedua hari). <button className="btn btn-link p-0" onClick={tpl}>Unduh template</button></p>
+    <p className="text-muted">Kolom wajib: Nama saja. Email, WhatsApp, Nama Perusahaan, dan Bidang Perusahaan boleh kosong. Bila kegiatan 2 hari dan pesertanya berbeda tiap hari, isi kolom <b>Hari</b> dengan 1 atau 2 (kosong = hadir di kedua hari). <button className="btn btn-link p-0" onClick={tpl}>Unduh template</button></p>
     {loadEx ? <Skel w="400px" h="2.4rem" r="8px" className="mb-3"/> : <input type="file" accept=".xlsx,.xls,.csv" className="form-control mb-3" style={{maxWidth:400}} disabled={busy} onChange={read}/>}
     {reading && <div aria-busy="true" aria-label="Membaca file"><Skel w="40%" className="mb-2"/><Skel h="1.1rem" className="mb-1"/><Skel h="1.1rem" className="mb-1"/><Skel h="1.1rem" className="mb-3"/></div>}
     {skipped > 0 && <div className="alert alert-warning">{skipped} baris dilewati karena nomor WhatsApp sama (duplikat).</div>}

@@ -265,8 +265,8 @@ export function buatTemplate(ExcelJS) {
   pt.getColumn(1).width = 110
   ;[['Petunjuk pengisian', { bold: true, size: 14 }],
     ['Isi data peserta di lembar "Peserta", satu baris untuk satu peserta. Jangan mengubah judul kolom di baris pertama. Baris kosong dilewati.', {}],
-    ['Nama dan WhatsApp wajib diisi. Email, Nama Perusahaan, dan Bidang Perusahaan boleh kosong.', {}],
-    ['WhatsApp: nomor HP berawalan 08 atau 628, contoh 08123456789 atau 628123456789. Satu nomor hanya boleh dipakai satu peserta.', {}],
+    ['Hanya Nama yang wajib diisi. Email, WhatsApp, Nama Perusahaan, dan Bidang Perusahaan boleh kosong.', {}],
+    ['WhatsApp (bila diisi): nomor HP berawalan 08 atau 628, contoh 08123456789 atau 628123456789. Satu nomor hanya boleh dipakai satu peserta.', {}],
     ['Hari (hanya bila kegiatan berlangsung 2 hari): isi 1 atau 2 bila peserta hanya hadir di salah satu hari. Kosongkan bila hadir di kedua hari.', {}],
     ['Setelah selesai, simpan file lalu unggah di menu Peserta, Import Excel.', {}]].forEach(([t, o], i) => { const c = pt.getCell(i + 1, 1); c.value = t; gaya(c, { ...o, v: 'top' }); pt.getRow(i + 1).height = o.size ? 26 : t.length > 105 ? 32 : 20 })
   return wb

@@ -34,9 +34,8 @@ export default function Participants() {
     const d = { ...f, name: f.name.trim(), email: f.email.trim(), institution: f.institution.trim(), bidang: (f.bidang || '').trim(), whatsapp: waNumber(f.whatsapp), waAsli: f.whatsapp.trim(), hari: normHari(f.hari) }, er = {}
     if (!d.name) er.name = 'Nama wajib diisi.'
     if (multi && f.hari === '?') er.hari = 'Pilih batch peserta.'
-    if (!d.whatsapp) er.whatsapp = 'Nomor WhatsApp wajib diisi.'
-    else if (!validWa(d.whatsapp)) er.whatsapp = 'Nomor tidak valid. Harus nomor HP berawalan 08 atau 628, contoh: 08123456789 atau 628123456789.'
-    else if (rows.some(r => r.id !== edit && waNumber(r.whatsapp) === d.whatsapp)) er.whatsapp = 'Nomor WhatsApp ini sudah terdaftar.'
+    if (f.whatsapp.trim() && !validWa(d.whatsapp)) er.whatsapp = 'Nomor tidak valid. Harus nomor HP berawalan 08 atau 628, contoh: 08123456789 atau 628123456789, atau kosongkan.'
+    else if (d.whatsapp && rows.some(r => r.id !== edit && waNumber(r.whatsapp) === d.whatsapp)) er.whatsapp = 'Nomor WhatsApp ini sudah terdaftar.'
     if (d.email && !validEmail(d.email)) er.email = 'Format email tidak valid (contoh: nama@gmail.com), atau kosongkan.'
     setFe(er); if (Object.keys(er).length) { document.getElementById('pf-' + Object.keys(er)[0])?.focus(); return }
     setBusy(true)
@@ -82,7 +81,7 @@ export default function Participants() {
         <div className="pf-sec">Data peserta</div>
         <div className="row g-3">
           <div className="col-12"><Field id="pf-name" label="Nama lengkap" req icon="person" error={fe.name}>{inp('name', 'Contoh: Budi Santoso', { type: 'text', autoFocus: true, ref: nameRef })}</Field></div>
-          <div className="col-12 col-md-6"><Field id="pf-whatsapp" label="Nomor WhatsApp" req icon="whatsapp" error={fe.whatsapp} hint="Awali dengan 08 atau 628. Tiket dikirim ke nomor ini.">{inp('whatsapp', '08123456789', { type: 'tel', inputMode: 'numeric' })}</Field></div>
+          <div className="col-12 col-md-6"><Field id="pf-whatsapp" label="Nomor WhatsApp" icon="whatsapp" error={fe.whatsapp} hint="Awali dengan 08 atau 628. Boleh dikosongkan.">{inp('whatsapp', '08123456789', { type: 'tel', inputMode: 'numeric' })}</Field></div>
           <div className="col-12 col-md-6"><Field id="pf-email" label="Email" icon="envelope" error={fe.email} hint="Boleh dikosongkan.">{inp('email', 'nama@perusahaan.co.id', { type: 'email', inputMode: 'email' })}</Field></div>
         </div>
         <div className="pf-sec">Perusahaan</div>

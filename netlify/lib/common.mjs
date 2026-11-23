@@ -134,10 +134,12 @@ export const untukWA = (t) => t.replaceAll(B1, '*').replaceAll(B2, '*')
 export const untukTeksBiasa = (t) => t.replaceAll(B1, '').replaceAll(B2, '')
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 // Versi HTML sederhana (QR di atas, lalu isi pesan yang sama). Tautan dibuat bisa diklik.
-export function untukHtml(t, { cid } = {}) {
+export function untukHtml(t, { cid, petaCid, maps } = {}) {
   const body = t.split('\n\n').map(par => '<p style="margin:0 0 14px">' + esc(par).replace(/\n/g, '<br>')
     .replace(/https:\/\/[^\s<]+/g, u => `<a href="${u}" style="color:#0f766e">${u}</a>`)
-    .replaceAll(B1, '<b>').replaceAll(B2, '</b>') + '</p>').join('')
+    .replaceAll(B1, '<b>').replaceAll(B2, '</b>') + '</p>'
+    // Peta statis (gambar) tepat setelah paragraf "Titik lokasi"; bisa diklik untuk membuka Google Maps
+    + (petaCid && maps && par.startsWith('Titik lokasi (Google Maps):') ? `<p style="margin:0 0 6px"><a href="${esc(maps)}"><img src="cid:${petaCid}" width="560" alt="Peta lokasi acara" style="display:block;width:100%;max-width:560px;height:auto;border:1px solid #e4e7ec;border-radius:12px"></a></p><p style="margin:0 0 14px;font-size:11px;color:#667085">Ketuk peta untuk membuka Google Maps. Peta &copy; OpenStreetMap contributors.</p>` : '')).join('')
   return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#18212f;max-width:560px">`
     + (cid ? `<p style="text-align:center;margin:0 0 16px"><img src="cid:${cid}" width="260" height="260" alt="Kode QR tiket" style="border:1px solid #e4e7ec;border-radius:12px"></p>` : '') + body + '</div>'
 }

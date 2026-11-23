@@ -10,10 +10,11 @@
 ## WhatsApp via Fonnte
 Pengiriman memakai Netlify Function `netlify/functions/send-wa.mjs`. Isi environment variable di Netlify: `FONNTE_TOKEN`, `FB_API_KEY`, `FB_PROJECT_ID`, `SITE_URL`. Function hanya bisa dideploy lewat Git atau Netlify CLI (bukan drag-and-drop): `netlify deploy --prod --build`. Uji lokal dengan `netlify dev`.
 
-## Pengiriman otomatis tiket (Fonnte)
-- Membuat tiket TIDAK otomatis mengirim apa pun. Kotak "Kirim otomatis via WhatsApp" dan "dan email" di menu Tiket tidak tercentang secara default; kirim lewat menu Kirim tiket. Bila sengaja dicentang sebelum klik "Buat tiket", tiket baru langsung dikirim (jeda 3-6 detik per pesan).
-- **WhatsApp** hanya mengarahkan peserta ke emailnya (nama, judul kegiatan, email yang disamarkan, dan imbauan memeriksa Spam). Tidak ada QR atau tautan di pesan ini. Kirim email lebih dulu atau bersamaan agar tiketnya sudah ada saat peserta mengeceknya.
-- Peserta **tanpa email valid** tetap menerima pesan WhatsApp penuh (rincian + gambar QR + tautan tiket) sebagai cadangan. Lampiran gambar hanya diterima Fonnte pada paket Super/Advanced/Ultra; di paket lain dikirim teks + tautan tiket.
+## Pengiriman tiket (email dan WhatsApp)
+- Hanya **Nama** yang wajib saat menambah atau mengimport peserta. Email dan WhatsApp boleh kosong, tetapi bila diisi harus valid.
+- Membuat tiket TIDAK otomatis mengirim apa pun. Kotak kirim otomatis di menu Tiket tidak tercentang secara default; kirim lewat menu Kirim tiket. Bila keduanya dicentang, email dikirim lebih dulu lalu WhatsApp.
+- **Email** membawa tiket lengkap (rincian, peta dengan pin merah, QR, tautan tiket). Peta dibuat di server dari ubin OpenStreetMap (`netlify/lib/peta.mjs`) dan butuh koordinat dari peta di menu Info acara; tautan pendek (maps.app.goo.gl) tidak punya koordinat terbaca sehingga email hanya memuat tautan. Bila ubin gagal diunduh, email tetap terkirim tanpa peta.
+- **WhatsApp** bisa dikirim kapan saja, tidak menunggu email. Peserta dengan email valid menerima pesan singkat yang mengarahkan ke emailnya dan tautan tiket; peserta tanpa email valid menerima pesan penuh (QR dan tautan tiket) sebagai cadangan.
 - Yang gagal terkirim tetap berstatus "Belum" di menu Distribusi dan bisa dikirim ulang.
 
 ## Titik lokasi (Google Maps)
