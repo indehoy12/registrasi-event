@@ -1791,3 +1791,15 @@ h1.h4 {
     grid-column: auto;
   }
 }
+.mdl-form .pf-input .pf-eye {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--bs-secondary-color, #6c757d);
+  font-size: 1.05rem;
+  z-index: 3;
+}
+.mdl-form .pf-input:has(.pf-eye) .form-control {
+  padding-right: 2.5rem;
+}
