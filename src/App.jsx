@@ -17,8 +17,8 @@ const Muat = () => <div className="p-4 fit" style={{ maxWidth: 720, margin: '0 a
 const PRA = { dashboard: () => import('./pages/Dashboard'), participants: () => import('./pages/Participants'), tickets: () => import('./pages/Tickets'), distribution: () => import('./pages/Distribution'), checkins: () => import('./pages/Checkins'), reports: () => import('./pages/Reports'), seminar: () => import('./pages/Seminar') }
 const AD = ['superadmin','admin'], ALL = ['superadmin','admin','petugas']
 const GROUPS = [
-  ['', [['dashboard','Dashboard','speedometer2',AD]]],
-  ['Persiapan', [['seminar','Info acara','calendar-event',AD],['participants','Peserta','people',AD],['tickets','Undangan QR','ticket-perforated',AD],['distribution','Kirim undangan','whatsapp',AD]]],
+  ['', [['dashboard','Dashboard','speedometer2',ALL]]],
+  ['Persiapan', [['seminar','Info acara','calendar-event',AD],['participants','Peserta','people',ALL],['tickets','Undangan QR','ticket-perforated',ALL],['distribution','Kirim undangan','whatsapp',AD]]],
   ['Hari pelaksanaan', [['scanner','Scan dan check-in','qr-code-scan',ALL],['checkins','Riwayat kehadiran','clock-history',ALL]]],
   ['Kelola', [['reports','Laporan','file-earmark-bar-graph',AD],['settings','Akun dan log','gear',['superadmin']]]],
 ]
@@ -56,11 +56,11 @@ export default function App() {
           <div className="topbar"><button aria-label="Buka menu" onClick={() => setOpen(true)}><i className="bi bi-list"/></button><b className="brand-t"><Judul/></b></div>
           <main className="content"><Suspense fallback={<Muat/>}><Routes>
             <Route path="/admin/login" element={<Navigate to={home}/>}/>
-            <Route path="/admin/dashboard" element={P(AD, <Dashboard/>)}/>
+            <Route path="/admin/dashboard" element={P(ALL, <Dashboard/>)}/>
             <Route path="/admin/seminar" element={P(AD, <Seminar/>)}/>
-            <Route path="/admin/participants" element={P(AD, <Participants/>)}/>
+            <Route path="/admin/participants" element={P(ALL, <Participants readOnly={!AD.includes(role)}/>)}/>
             <Route path="/admin/participants/import" element={P(AD, <Import/>)}/>
-            <Route path="/admin/tickets" element={P(AD, <Tickets/>)}/>
+            <Route path="/admin/tickets" element={P(ALL, <Tickets readOnly={!AD.includes(role)}/>)}/>
             <Route path="/admin/distribution" element={P(AD, <Distribution/>)}/>
             <Route path="/admin/scanner" element={P(ALL, <Scanner/>)}/>
             <Route path="/admin/checkins" element={P(ALL, <Checkins canEdit={AD.includes(role)}/>)}/>

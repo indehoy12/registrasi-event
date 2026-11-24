@@ -11,7 +11,7 @@ service cloud.firestore {
       allow read: if request.auth != null && (request.auth.uid == u || superadmin());
       allow create, update: if superadmin();
     }
-    match /participants/{id} { allow read, write: if admin(); }
+    match /participants/{id} { allow read: if staff(); allow write: if admin(); } // petugas boleh MELIHAT data peserta (cadangan bila QR bermasalah), tidak boleh mengubah
     match /seminar/{id} { allow get: if true; allow list: if staff(); allow write: if admin(); }
     // get dibuka agar peserta bisa membuka tautan tiketnya; kode tiket acak dan tidak bisa ditebak
     // Selisih peta usedDays (hari -> waktu check-in) antara data baru dan data lama

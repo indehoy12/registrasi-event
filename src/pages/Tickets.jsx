@@ -7,10 +7,10 @@ const save = (href, name) => { const a = document.createElement('a'); a.href = h
 // Pencarian langsung sesuai kolom tabel ini (nama, nomor undangan, status undangan); nomor undangan ikut dicari mulai 3 karakter (atau bila ada angka)
 // agar mengetik satu-dua huruf nama tidak memunculkan peserta yang namanya tidak cocok hanya karena nomor undangannya.
 const STATUS = { aktif: 'Aktif', terpakai: 'Terpakai', dicabut: 'Dicabut' }
-const cocok = (p, t, q) => cariCocok(q, `${p.name || ''} ${p.email || ''} ${p.institution || ''} ${p.pimpinan || ''} ${p.domisili || ''} ${p.wilayah || ''} ${p.bidang || ''} ${t ? STATUS[t.status] || t.status : 'Belum dibuat'}`, t ? showCode(t.id) : '')
+const cocok = (p, t, q, ro) => cariCocok(q, `${p.name || ''} ${ro ? '' : p.email || ''} ${p.institution || ''} ${p.pimpinan || ''} ${p.domisili || ''} ${p.wilayah || ''} ${p.bidang || ''} ${t ? STATUS[t.status] || t.status : 'Belum dibuat'}`, t ? showCode(t.id) : '')
 
 // Popup QR: tampil langsung saat tombol "Lihat QR" ditekan; Esc atau klik di luar kotak untuk menutup
-function QrModal({ t, onClose, onPng }) {
+function QrModal({ t, onClose, onPng, readOnly }) {
   const [img, setImg] = useState('')
   useEffect(() => { let batal = false; QRCode.toDataURL(t.id, { width: 700, margin: 2 }).then(u => { if (!batal) setImg(u) }); return () => { batal = true } }, [t.id])
   useEffect(() => { const k = (e) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k) })
@@ -24,10 +24,10 @@ function QrModal({ t, onClose, onPng }) {
       <div className="mb-3"><Badge s={t.status}/></div>
       {mati && <div className="small text-danger mb-3">Undangan sudah dicabut.</div>}
       <div className="d-grid gap-2"><button className="btn btn-primary" autoFocus onClick={onClose}>Tutup</button>
-        <button className="btn btn-outline-primary" disabled={!img} onClick={onPng}><i className="bi bi-download"/> Unduh PNG</button></div>
+        {!readOnly && <button className="btn btn-outline-primary" disabled={!img} onClick={onPng}><i className="bi bi-download"/> Unduh PNG</button>}</div>
     </div></div>
 }
-export default function Tickets() {
+export default function Tickets({ readOnly = false }) {   // readOnly: petugas hanya melihat QR (tanpa buat, unduh, cabut, kirim)
   const ask = useDialog()
   const [ps0, lp] = useColState('participants'), ps = [...ps0].sort(urutNama), [ts, lt] = useColState('tickets'), loading = lp || lt, { loaded: sl, mapsOk } = useSeminar(), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [auto, setAuto] = useState(false), [autoMail, setAutoMail] = useState(false), [q, setQ] = useState(''), qd = useDeferredValue(q), [hal, setHal] = useState(1), [per, setPer] = useState(25), [lihat, setLihat] = useState(null)
   useJagaProses(busy)
@@ -35,7 +35,7 @@ export default function Tickets() {
   const by = Object.fromEntries(ts.filter(t => t.status !== 'dicabut').map(t => [t.participantId, t]))
   const todo = ps.filter(p => !by[p.id])
   const semua = Object.fromEntries(ts.map(t => [t.id, t])), tLihat = lihat && semua[lihat]   // ambil dari data langsung supaya status (mis. dicabut) ikut berubah di popup
-  const tampil = ps.filter(p => cocok(p, by[p.id], qd.trim()))
+  const tampil = ps.filter(p => cocok(p, by[p.id], qd.trim(), readOnly))
 
   const { mulai } = halaman(tampil.length, hal, per), baris = tampil.slice(mulai, mulai + per)
   const gen = async (list) => { setBusy(true); setMsg('')
@@ -67,22 +67,22 @@ export default function Tickets() {
     await updateDoc(doc(db, 'tickets', t.id), { status: 'dicabut' })
     await addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'cabut undangan', participant: t.participantName }) }
   return <><div className="d-flex gap-2 mb-3 flex-wrap"><h1 className="h4 me-auto">Undangan QR</h1>
-    <label className="form-check d-flex align-items-center gap-2 small mb-0"><input type="checkbox" className="form-check-input mt-0" checked={autoMail && mapsOk} disabled={!mapsOk} onChange={e => setAutoMail(e.target.checked)}/>Kirim otomatis via email</label>
+    {!readOnly && <><label className="form-check d-flex align-items-center gap-2 small mb-0"><input type="checkbox" className="form-check-input mt-0" checked={autoMail && mapsOk} disabled={!mapsOk} onChange={e => setAutoMail(e.target.checked)}/>Kirim otomatis via email</label>
     <label className="form-check d-flex align-items-center gap-2 small mb-0"><input type="checkbox" className="form-check-input mt-0" checked={auto && mapsOk} disabled={!mapsOk} onChange={e => setAuto(e.target.checked)}/>dan WhatsApp</label>
     <button className="btn btn-outline-primary btn-sm" disabled={busy || !ts.length} onClick={zip}>Unduh semua PNG (ZIP)</button>
-    <button className={'btn btn-primary btn-sm' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy || !todo.length} onClick={() => gen(todo)}>{`Buat ${todo.length} undangan`}</button></div>
-    <MapsWarn loaded={sl} mapsOk={mapsOk}/>
+    <button className={'btn btn-primary btn-sm' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy || !todo.length} onClick={() => gen(todo)}>{`Buat ${todo.length} undangan`}</button></>}</div>
+    {!readOnly && <MapsWarn loaded={sl} mapsOk={mapsOk}/>}
     {msg && <div className="alert alert-info">{msg}</div>}
-    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} type="search" autoComplete="off" aria-label="Cari nama PIC, perusahaan, atau nomor undangan" placeholder="Cari nama PIC, perusahaan, email, nomor undangan, atau status" value={q} onChange={e => { setQ(e.target.value); setHal(1) }}/>
+    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} type="search" autoComplete="off" aria-label="Cari nama PIC, perusahaan, atau nomor undangan" placeholder={readOnly ? "Cari nama PIC, perusahaan, nomor undangan, atau status" : "Cari nama PIC, perusahaan, email, nomor undangan, atau status"} value={q} onChange={e => { setQ(e.target.value); setHal(1) }}/>
       {!loading && q.trim() && <span className="small text-muted" role="status" aria-live="polite">{tampil.length} dari {ps.length} peserta</span>}</div>
     <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th style={{ width: '3rem' }}>No</th><th>Nama PIC/Admin</th><th>Nama Perusahaan/Nama Individu</th><th>Email Address</th><th>No. undangan</th><th>Status undangan</th><th/></tr></thead><tbody>
       {loading && <SkelRows rows={6} cols={7}/>}
       {!loading && !tampil.length && <tr><td colSpan={7} className="text-center text-muted py-4">{q.trim() ? <>Tidak ada peserta yang cocok dengan “{q.trim()}”. <button className="btn btn-link btn-sm p-0 align-baseline" onClick={() => setQ('')}>Hapus pencarian</button></> : 'Belum ada peserta.'}</td></tr>}
-      {!loading && baris.map((p, i) => { const t = by[p.id]; return <tr key={p.id}><td className="text-muted">{mulai + i + 1}</td><td>{p.name}</td><td>{p.institution || <span className="text-muted">-</span>}{p.pimpinan && <div className="small text-muted">{p.pimpinan}</div>}</td><td className="small">{p.email || <span className="text-muted">-</span>}</td><td className="tk-code">{t ? showCode(t.id) : '-'}</td><td><Badge s={t ? t.status : 'belum'}/></td>
-        <td className="text-end">{!t && <button className="btn btn-link btn-sm" disabled={busy} onClick={() => gen([p])}>Buat undangan</button>}
+      {!loading && baris.map((p, i) => { const t = by[p.id]; return <tr key={p.id}><td className="text-muted">{mulai + i + 1}</td><td>{p.name}</td><td>{p.institution || <span className="text-muted">-</span>}{p.pimpinan && <div className="small text-muted">{p.pimpinan}</div>}</td><td className="small">{(readOnly ? maskEmail(p.email) : p.email) || <span className="text-muted">-</span>}</td><td className="tk-code">{t ? showCode(t.id) : '-'}</td><td><Badge s={t ? t.status : 'belum'}/></td>
+        <td className="text-end">{!readOnly && !t && <button className="btn btn-link btn-sm" disabled={busy} onClick={() => gen([p])}>Buat undangan</button>}
         {t && <button className="btn btn-link btn-sm" onClick={() => setLihat(t.id)}>Lihat QR</button>}
-        {t && <button className="btn btn-link btn-sm" onClick={() => png(t, p)}>Unduh PNG</button>}
-        {t?.status === 'aktif' && <button className="btn btn-link btn-sm text-danger" onClick={() => revoke(t)}>Cabut</button>}</td></tr> })}</tbody></table></div>
+        {!readOnly && t && <button className="btn btn-link btn-sm" onClick={() => png(t, p)}>Unduh PNG</button>}
+        {!readOnly && t?.status === 'aktif' && <button className="btn btn-link btn-sm text-danger" onClick={() => revoke(t)}>Cabut</button>}</td></tr> })}</tbody></table></div>
     {!loading && <Pager total={tampil.length} hal={hal} setHal={setHal} per={per} setPer={setPer} nama="peserta"/>}
-    {tLihat && <QrModal t={tLihat} onClose={() => setLihat(null)} onPng={() => png(tLihat, ps.find(x => x.id === tLihat.participantId))}/>}</>
+    {tLihat && <QrModal t={tLihat} readOnly={readOnly} onClose={() => setLihat(null)} onPng={() => png(tLihat, ps.find(x => x.id === tLihat.participantId))}/>}</>
 }
