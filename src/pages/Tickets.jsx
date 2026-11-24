@@ -1,5 +1,5 @@
-import { useDialog, Badge, SkelRows, MapsWarn, Skel } from '../ui'
-import { useEffect, useState } from 'react'; import QRCode from 'qrcode'; import JSZip from 'jszip'
+import { useDialog, Badge, SkelRows, MapsWarn, Skel, Pager, halaman } from '../ui'
+import { useDeferredValue, useEffect, useState } from 'react'; import QRCode from 'qrcode'
 import { addDoc, collection, doc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore'
 import { useColState, useSeminar, wait, perusahaanTeks, cariCocok, sendTicketWA, sendTicketEmail, validEmail, maskWa, maskEmail, showCode, useJagaProses, normHari, normCode, urutNama } from '../hooks'; import { auth, db } from '../firebase'
 const newToken = () => { const b = crypto.getRandomValues(new Uint8Array(24)); return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') }
@@ -29,13 +29,15 @@ function QrModal({ t, onClose, onPng }) {
 }
 export default function Tickets() {
   const ask = useDialog()
-  const [ps0, lp] = useColState('participants'), ps = [...ps0].sort(urutNama), [ts, lt] = useColState('tickets'), loading = lp || lt, { loaded: sl, mapsOk } = useSeminar(), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [auto, setAuto] = useState(false), [autoMail, setAutoMail] = useState(false), [q, setQ] = useState(''), [lihat, setLihat] = useState(null)
+  const [ps0, lp] = useColState('participants'), ps = [...ps0].sort(urutNama), [ts, lt] = useColState('tickets'), loading = lp || lt, { loaded: sl, mapsOk } = useSeminar(), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [auto, setAuto] = useState(false), [autoMail, setAutoMail] = useState(false), [q, setQ] = useState(''), qd = useDeferredValue(q), [hal, setHal] = useState(1), [per, setPer] = useState(25), [lihat, setLihat] = useState(null)
   useJagaProses(busy)
   const rincian = (arr) => arr.length ? ` Perhatian: ${arr.slice(0, 5).join('; ')}${arr.length > 5 ? `; dan ${arr.length - 5} lainnya` : ''}.` : ''
   const by = Object.fromEntries(ts.filter(t => t.status !== 'dicabut').map(t => [t.participantId, t]))
   const todo = ps.filter(p => !by[p.id])
   const semua = Object.fromEntries(ts.map(t => [t.id, t])), tLihat = lihat && semua[lihat]   // ambil dari data langsung supaya status (mis. dicabut) ikut berubah di popup
-  const tampil = ps.filter(p => cocok(p, by[p.id], q.trim()))
+  const tampil = ps.filter(p => cocok(p, by[p.id], qd.trim()))
+
+  const { mulai } = halaman(tampil.length, hal, per), baris = tampil.slice(mulai, mulai + per)
   const gen = async (list) => { setBusy(true); setMsg('')
     try { const made = list.map(p => ({ p, id: newToken() }))
       for (let i = 0; i < made.length; i += 400) { const b = writeBatch(db)
@@ -58,7 +60,7 @@ export default function Tickets() {
       if (!(auto && mapsOk) && !(autoMail && mapsOk)) info += ' Belum dikirim ke peserta.'
       setMsg(info) } catch (e) { setMsg('Gagal membuat undangan: ' + e.message) } setBusy(false) }
   const png = async (t, p) => save(await QRCode.toDataURL(t.id, { width: 700, margin: 2 }), `undangan-${(p?.name || t.id).replace(/[^\w-]+/g, '_')}.png`)
-  const zip = async () => { setBusy(true); const z = new JSZip()
+  const zip = async () => { setBusy(true); const JSZip = (await import('jszip')).default, z = new JSZip()
     for (const t of ts.filter(t => t.status === 'aktif')) z.file(`${t.participantName.replace(/[^\w-]+/g, '_')}-${t.id.slice(0, 5)}.png`, (await QRCode.toDataURL(t.id, { width: 700, margin: 2 })).split(',')[1], { base64: true })
     save(URL.createObjectURL(await z.generateAsync({ type: 'blob' })), 'undangan-semua.zip'); setBusy(false) }
   const revoke = async (t) => { if (!await ask({ title:'Cabut undangan?', text:`Undangan ${t.participantName} tidak akan bisa dipakai untuk check-in lagi.`, ok:'Cabut undangan', danger:true, icon:'slash-circle' })) return
@@ -71,15 +73,16 @@ export default function Tickets() {
     <button className={'btn btn-primary btn-sm' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy || !todo.length} onClick={() => gen(todo)}>{`Buat ${todo.length} undangan`}</button></div>
     <MapsWarn loaded={sl} mapsOk={mapsOk}/>
     {msg && <div className="alert alert-info">{msg}</div>}
-    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} type="search" autoComplete="off" aria-label="Cari nama PIC, perusahaan, atau nomor undangan" placeholder="Cari nama PIC, perusahaan, email, nomor undangan, atau status" value={q} onChange={e => setQ(e.target.value)}/>
+    <div className="d-flex align-items-center gap-3 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 420 }} type="search" autoComplete="off" aria-label="Cari nama PIC, perusahaan, atau nomor undangan" placeholder="Cari nama PIC, perusahaan, email, nomor undangan, atau status" value={q} onChange={e => { setQ(e.target.value); setHal(1) }}/>
       {!loading && q.trim() && <span className="small text-muted" role="status" aria-live="polite">{tampil.length} dari {ps.length} peserta</span>}</div>
     <div className="table-responsive"><table className="table table-sm align-middle"><thead><tr><th style={{ width: '3rem' }}>No</th><th>Nama PIC/Admin</th><th>Nama Perusahaan/Nama Individu</th><th>Email Address</th><th>No. undangan</th><th>Status undangan</th><th/></tr></thead><tbody>
       {loading && <SkelRows rows={6} cols={7}/>}
       {!loading && !tampil.length && <tr><td colSpan={7} className="text-center text-muted py-4">{q.trim() ? <>Tidak ada peserta yang cocok dengan “{q.trim()}”. <button className="btn btn-link btn-sm p-0 align-baseline" onClick={() => setQ('')}>Hapus pencarian</button></> : 'Belum ada peserta.'}</td></tr>}
-      {!loading && tampil.map((p, i) => { const t = by[p.id]; return <tr key={p.id}><td className="text-muted">{i + 1}</td><td>{p.name}</td><td>{p.institution || <span className="text-muted">-</span>}{p.pimpinan && <div className="small text-muted">{p.pimpinan}</div>}</td><td className="small">{p.email || <span className="text-muted">-</span>}</td><td className="tk-code">{t ? showCode(t.id) : '-'}</td><td><Badge s={t ? t.status : 'belum'}/></td>
+      {!loading && baris.map((p, i) => { const t = by[p.id]; return <tr key={p.id}><td className="text-muted">{mulai + i + 1}</td><td>{p.name}</td><td>{p.institution || <span className="text-muted">-</span>}{p.pimpinan && <div className="small text-muted">{p.pimpinan}</div>}</td><td className="small">{p.email || <span className="text-muted">-</span>}</td><td className="tk-code">{t ? showCode(t.id) : '-'}</td><td><Badge s={t ? t.status : 'belum'}/></td>
         <td className="text-end">{!t && <button className="btn btn-link btn-sm" disabled={busy} onClick={() => gen([p])}>Buat undangan</button>}
         {t && <button className="btn btn-link btn-sm" onClick={() => setLihat(t.id)}>Lihat QR</button>}
         {t && <button className="btn btn-link btn-sm" onClick={() => png(t, p)}>Unduh PNG</button>}
         {t?.status === 'aktif' && <button className="btn btn-link btn-sm text-danger" onClick={() => revoke(t)}>Cabut</button>}</td></tr> })}</tbody></table></div>
+    {!loading && <Pager total={tampil.length} hal={hal} setHal={setHal} per={per} setPer={setPer} nama="peserta"/>}
     {tLihat && <QrModal t={tLihat} onClose={() => setLihat(null)} onPng={() => png(tLihat, ps.find(x => x.id === tLihat.participantId))}/>}</>
 }

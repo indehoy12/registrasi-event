@@ -9,22 +9,18 @@ const JENDELA = 10 * 60 * 1000   // waktu koreksi check-in oleh petugas (sama de
 export default function Scanner() {
   const ask = useDialog(), [ed, setEd] = useState(null)
   const lock = useRef(false), codeRef = useRef(null), ckRef = useRef([])
-  const [mode, setMode] = useState('kamera')              // 'kamera' | 'manual'
-  const [tickets, setTickets] = useState([]), [listErr, setListErr] = useState(false)
+  const [mode, setMode] = useState(() => { try { return localStorage.getItem('scanMode') === 'manual' ? 'manual' : 'kamera' } catch { return 'kamera' } })              // 'kamera' | 'manual'
   const [res, setRes] = useState(null), [busy, setBusy] = useState(false), [note, setNote] = useState('')
   const [camErr, setCamErr] = useState(''), [camKey, setCamKey] = useState(0), [camReady, setCamReady] = useState(false)
   const [code, setCode] = useState(''), [manualErr, setManualErr] = useState('')
-  const [checkins, loadCk] = useColState('checkins', 'checkedInAt'), [tkLoaded, setTkLoaded] = useState(false)
+  const [checkins, loadCk] = useColState('checkins', 'checkedInAt'), [tickets, tkLoading, listErr] = useColState('tickets'), tkLoaded = !tkLoading
   // Hari kegiatan: otomatis mengikuti tanggal hari ini, bisa diganti manual bila kegiatan 2 hari
   const { sem, loaded: semLoaded } = useSeminar(), days = hariList(sem), [pick, setPick] = useState(null), multi = days.length > 1
   const day = pick && days.includes(pick) ? pick : hariAktif(days), dayNo = days.indexOf(day) + 1
   const dayRef = useRef(day), daysRef = useRef(days), semRef = useRef(semLoaded); dayRef.current = day; daysRef.current = days; semRef.current = semLoaded
   const st = (t) => t.status === 'dicabut' ? 'dicabut' : !hariBoleh(t, day, days) ? 'lain' : usedOn(t, day, days) ? 'terpakai' : 'aktif'
 
-  // Daftar undangan (live) dipakai untuk pencarian nomor undangan dan penghitung kehadiran
-  useEffect(() => onSnapshot(collection(db, 'tickets'),
-    s => { setTickets(s.docs.map(d => ({ id: d.id, ...d.data() }))); setListErr(false); setTkLoaded(true) },
-    e => { console.error('Gagal membaca undangan:', e.code); setListErr(true); setTkLoaded(true) }), [])
+  // Daftar undangan (live, dipakai bersama halaman lain) untuk pencarian nomor undangan dan penghitung kehadiran
 
   ckRef.current = checkins
   const aktif = tickets.filter(t => t.status !== 'dicabut' && hariBoleh(t, day, days)), hadir = aktif.filter(t => usedOn(t, day, days)).length
@@ -93,7 +89,7 @@ export default function Scanner() {
     return () => { started.then(() => s.isScanning && s.stop()).then(() => s.clear()).catch(() => {}) }
   }, [mode, camKey])
 
-  const ganti = (m) => { if (m === mode) return; setMode(m); setManualErr(''); if (m === 'manual') setTimeout(() => codeRef.current?.focus(), 50) }
+  const ganti = (m) => { if (m === mode) return; setMode(m); try { localStorage.setItem('scanMode', m) } catch {}; setManualErr(''); if (m === 'manual') setTimeout(() => codeRef.current?.focus(), 50) }
 
   // Pencarian langsung (live): hasil muncul setiap ketikan; nama, perusahaan, nomor undangan, atau tautan undangan. Satu sentuhan = check-in.
   const q = code.trim(), qn = normCode(q), ql = q.toLowerCase()
@@ -159,9 +155,9 @@ export default function Scanner() {
           <p className="small text-muted mt-2 mb-0">QR tidak terbaca? Pakai tab <b>Input manual</b>.</p>
         </> : <form className="panel" onSubmit={cari}>
           <label htmlFor="kode" className="form-label fw-semibold">Cari peserta atau nomor undangan</label>
-          <input id="kode" ref={codeRef} type="search" className="form-control form-control-lg" placeholder="Cari nama" value={code} autoComplete="off" autoCapitalize="off" spellCheck="false"
+          <input id="kode" ref={codeRef} type="search" className="form-control form-control-lg" placeholder="Cari nama, atau scan dengan alat scan USB" autoFocus value={code} autoComplete="off" autoCapitalize="off" spellCheck="false"
             onChange={e => setCode(e.target.value)}/>
-          <div className="form-text">Sentuh nama untuk check-in.</div>
+          <div className="form-text">Sentuh nama untuk check-in. Alat scan USB: arahkan ke QR, check-in otomatis.</div>
           {listErr && <div className="alert alert-danger mt-2 mb-0">Akses data undangan ditolak. Hubungi Super Admin.</div>}
           {!listErr && q && !tkLoaded && <div className="mt-2" aria-busy="true"><Skel h="3.6rem" r="12px" className="mb-2"/><Skel h="3.6rem" r="12px"/></div>}
           {!listErr && q && tkLoaded && <div className="hits mt-2" role="listbox" aria-label="Hasil pencarian">

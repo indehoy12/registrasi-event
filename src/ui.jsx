@@ -101,3 +101,19 @@ export const SkelList = ({ rows = 3 }) => <div aria-busy="true" aria-label="Memu
 // Peringatan bila titik lokasi Maps belum diisi (muncul di Dashboard, Undangan, dan Distribusi)
 export const MapsWarn = ({ loaded, mapsOk }) => loaded && !mapsOk ? <div className="alert alert-warning d-flex gap-2 align-items-start" role="alert"><i className="bi bi-geo-alt-fill fs-5"/>
   <div><b>Lokasi Google Maps belum diisi.</b> Pengiriman undangan ditahan. <Link to="/admin/seminar">Isi sekarang</Link></div></div> : null
+
+// Pagination seragam dengan halaman Peserta. halaman() menghitung irisan data, Pager menampilkan kontrolnya.
+export const halaman = (total, hal, per) => { const jml = Math.max(1, Math.ceil(total / per)), page = Math.min(hal, jml); return { jml, page, mulai: (page - 1) * per } }
+export function Pager({ total, hal, setHal, per, setPer, nama = 'data' }) {
+  const { jml, page, mulai } = halaman(total, hal, per)
+  if (!total) return null
+  const a = [...new Set([1, jml, page - 1, page, page + 1].filter(n => n >= 1 && n <= jml))].sort((x, y) => x - y), nomor = []
+  a.forEach((n, i) => { if (i && n - a[i - 1] > 1) nomor.push('…' + n); nomor.push(n) })
+  return <div className="d-flex align-items-center justify-content-between gap-3 flex-wrap mt-2">
+    <div className="d-flex align-items-center gap-2 small text-muted"><span role="status" aria-live="polite">Menampilkan {mulai + 1}–{Math.min(mulai + per, total)} dari {total} {nama}</span>
+      <select className="form-select form-select-sm" style={{ width: 'auto' }} aria-label={`Jumlah ${nama} per halaman`} value={per} onChange={e => { setPer(+e.target.value); setHal(1) }}>{[10, 25, 50, 100].map(n => <option key={n} value={n}>{n} / halaman</option>)}</select></div>
+    {jml > 1 && <nav aria-label={`Halaman ${nama}`}><ul className="pagination pagination-sm mb-0">
+      <li className={'page-item' + (page === 1 ? ' disabled' : '')}><button type="button" className="page-link" aria-label="Halaman sebelumnya" disabled={page === 1} onClick={() => setHal(page - 1)}>&laquo;</button></li>
+      {nomor.map(n => typeof n === 'string' ? <li key={n} className="page-item disabled"><span className="page-link">…</span></li> : <li key={n} className={'page-item' + (n === page ? ' active' : '')}><button type="button" className="page-link" aria-current={n === page ? 'page' : undefined} onClick={() => setHal(n)}>{n}</button></li>)}
+      <li className={'page-item' + (page === jml ? ' disabled' : '')}><button type="button" className="page-link" aria-label="Halaman berikutnya" disabled={page === jml} onClick={() => setHal(page + 1)}>&raquo;</button></li></ul></nav>}</div>
+}

@@ -1,16 +1,43 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { collection, deleteField, doc, onSnapshot, query, orderBy, runTransaction } from 'firebase/firestore'
 import { auth, db } from './firebase'
-// Data langsung (realtime): berubah otomatis tanpa refresh. Mengembalikan [rows, loading] untuk tampilan skeleton.
+// Penyimpanan data langsung yang DIPAKAI BERSAMA: satu koleksi hanya dibaca dari Firestore satu kali walau dipakai beberapa halaman/komponen sekaligus,
+// dan tetap hidup 45 detik setelah halaman ditutup, jadi berpindah menu tidak membaca ulang seluruh data (lebih cepat dan hemat kuota baca Firestore).
+// Skeleton tetap muncul selama data pertama kali dimuat.
+const store = new Map()
+const lepas = (e) => { e.unsub?.(); e.unsub = null }
+function ambil(key, start, awal) {
+  let e = store.get(key)
+  if (!e) { e = { snap: awal, awal, subs: new Set(), unsub: null, timer: 0, start }; store.set(key, e) }
+  return e
+}
+function usePakai(e) {
+  const sub = useCallback((cb) => {
+    clearTimeout(e.timer); e.subs.add(cb)
+    if (!e.unsub) e.unsub = e.start((s) => { e.snap = s; e.subs.forEach(f => f()) })
+    return () => { e.subs.delete(cb); if (!e.subs.size) e.timer = setTimeout(() => { if (!e.subs.size) { lepas(e); e.snap = e.awal } }, 45000) }
+  }, [e])
+  return useSyncExternalStore(sub, () => e.snap)
+}
+// Dipanggil saat keluar akun: semua data langsung dilepas supaya akun berikutnya tidak melihat data akun sebelumnya.
+export function resetData() { store.forEach(e => { clearTimeout(e.timer); lepas(e); e.snap = e.awal }); store.clear() }
+const AWAL_COL = { rows: [], loading: true, error: false }
+// Data langsung (realtime): berubah otomatis tanpa refresh. Mengembalikan [rows, loading, error] untuk tampilan skeleton.
 export function useColState(name, order) {
-  const [rows, setRows] = useState([]), [loading, setLoading] = useState(true)
-  useEffect(() => onSnapshot(order ? query(collection(db, name), orderBy(order, 'desc')) : collection(db, name),
-    s => { setRows(s.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) },
-    e => { console.error(`Gagal membaca koleksi ${name}:`, e.code, e.message); setLoading(false) }), [name, order])
-  return [rows, loading]
+  const e = ambil(name + '|' + (order || ''), (emit) => {
+    let last = []
+    return onSnapshot(order ? query(collection(db, name), orderBy(order, 'desc')) : collection(db, name),
+      s => { last = s.docs.map(d => ({ id: d.id, ...d.data() })); emit({ rows: last, loading: false, error: false }) },
+      er => { console.error(`Gagal membaca koleksi ${name}:`, er.code, er.message); emit({ rows: last, loading: false, error: true }) })
+  }, AWAL_COL)
+  const s = usePakai(e); return [s.rows, s.loading, s.error]
 }
 export const useCol = (name, order) => useColState(name, order)[0]
-export const fmt = (t) => t?.toDate ? t.toDate().toLocaleString('id-ID') : (t || '')
+// Pemformat tanggal dan pengurut nama dibuat SEKALI (membuatnya berulang untuk setiap baris tabel sangat lambat)
+const FMT = new Intl.DateTimeFormat('id-ID', { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
+const JAM = new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit' })
+const KOLASI = new Intl.Collator('id', { sensitivity: 'base' })
+export const fmt = (t) => t?.toDate ? FMT.format(t.toDate()) : (t || '')
 // Nomor HP Indonesia selalu menjadi 628xxxxxxxxxx: 08..., +62 8..., 8..., dan salah ketik "+62 08..." dirapikan otomatis
 export const waNumber = (n = '') => { let d = String(n).replace(/\D/g, ''); if (d.startsWith('620')) d = '62' + d.slice(3); return d.startsWith('0') ? '62' + d.slice(1) : d.startsWith('8') ? '62' + d : d }
 // Teks ringkas perusahaan peserta: "Nama perusahaan · Bidang perusahaan" (field lama `institution` tetap dipakai untuk nama perusahaan)
@@ -63,9 +90,9 @@ export async function batalkanCheckin(c, hari) {
   })
 }
 // Urutan standar daftar peserta di semua menu (Peserta, Undangan QR, Kirim undangan): abjad nama, tanpa membedakan huruf besar/kecil. Sama dengan laporan Excel.
-export const urutNama = (a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'id', { sensitivity: 'base' })
+export const urutNama = (a, b) => KOLASI.compare(String(a?.name || ''), String(b?.name || ''))
 // Urutan Riwayat kehadiran: per hari (hari ke-1 dulu), lalu abjad nama peserta, lalu waktu check-in.
-export const urutRiwayat = (days) => (a, b) => days.indexOf(ckDay(a, days)) - days.indexOf(ckDay(b, days)) || String(a.participantName || '').localeCompare(String(b.participantName || ''), 'id', { sensitivity: 'base' }) || (a.checkedInAt?.toMillis?.() ?? 0) - (b.checkedInAt?.toMillis?.() ?? 0)
+export const urutRiwayat = (days) => (a, b) => days.indexOf(ckDay(a, days)) - days.indexOf(ckDay(b, days)) || KOLASI.compare(String(a.participantName || ''), String(b.participantName || '')) || (a.checkedInAt?.toMillis?.() ?? 0) - (b.checkedInAt?.toMillis?.() ?? 0)
 export async function sendTicketEmail(ticketId) {
   const r = await fetch('/.netlify/functions/send-email', { method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser.getIdToken()}` }, body: JSON.stringify({ ticketId }) })
@@ -96,7 +123,7 @@ export const parseTicketInput = (raw = '') => {
   if (c.length !== 8) return { error: 'Nomor undangan terdiri dari 8 huruf/angka, contoh: RHEH NH0K.' }
   return { code: c }
 }
-export const jam = (t) => t?.toDate ? t.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(':', '.') : ''
+export const jam = (t) => t?.toDate ? JAM.format(t.toDate()).replace(':', '.') : ''
 
 // Titik lokasi Google Maps: terima tautan resmi Google Maps (termasuk maps.app.goo.gl) atau koordinat "lat,lng"; selain itu ditolak.
 export function normMaps(v = '') {
@@ -112,9 +139,10 @@ export function normMaps(v = '') {
   } catch { return '' }
 }
 // Info seminar secara langsung; mapsOk = titik lokasi sudah diisi dan valid
+const AWAL_SEM = { sem: {}, loaded: false }
 export function useSeminar() {
-  const [sem, setSem] = useState({}), [loaded, setLoaded] = useState(false)
-  useEffect(() => onSnapshot(doc(db, 'seminar', 'main'), s => { setSem(s.exists() ? s.data() : {}); setLoaded(true) }, () => setLoaded(true)), [])
+  const e = ambil('seminar/main', (emit) => onSnapshot(doc(db, 'seminar', 'main'), s => emit({ sem: s.exists() ? s.data() : {}, loaded: true }), () => emit({ sem: {}, loaded: true })), AWAL_SEM)
+  const { sem, loaded } = usePakai(e)
   return { sem, loaded, mapsOk: !!normMaps(sem.mapsUrl) }
 }
 

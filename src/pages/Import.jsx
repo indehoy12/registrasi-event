@@ -1,4 +1,4 @@
-import { useState } from 'react'; import * as XLSX from 'xlsx'
+import { useState } from 'react'
 import { addDoc, collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore'; import { auth, db } from '../firebase'; import { Skel } from '../ui'; import { useColState, useSeminar, hariList, hariTeks, waNumber, validWa, validEmail } from '../hooks'
 const key = (r) => r.whatsapp
 // Judul kolom dibandingkan tanpa huruf besar/kecil, spasi, dan tanda baca: "Whatsapp", "No. HP", atau "nama lengkap" tetap terbaca
@@ -33,7 +33,7 @@ export default function Import() {
       setAdaHari(ALIAS.hari.some(a => heads.has(a))); setRows(ok); setSkipped(dup); setSama(samaAda); setBad(badRows) }
   const read = async (e) => { const f = e.target.files[0]; if (!f || loadEx) return; setMsg(''); setErr(''); setRows([]); setSkipped(0); setSama(0); setBad([]); setRaw(null); setReading(true)
     try {
-      const wb = XLSX.read(await f.arrayBuffer()), j = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]])
+      const XLSX = await import('xlsx'), wb = XLSX.read(await f.arrayBuffer()), j = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]])
       proses(j, semua); setRaw(j)
     } catch (ex) { setErr('File tidak bisa dibaca: ' + (ex.message || ex)) }
     setReading(false); e.target.value = '' }

@@ -10,9 +10,22 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate icon" type="image/png" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" /></noscript>
+    <style>
+      /* Skeleton awal: tampil seketika sebelum aplikasi selesai dimuat, lalu diganti otomatis oleh aplikasi */
+      body { margin: 0; background: #f6f8fa; font-family: "Plus Jakarta Sans", system-ui, sans-serif }
+      .boot { max-width: 720px; margin: 0 auto; padding: 1.5rem }
+      .boot i { display: block; border-radius: 12px; margin-bottom: 1rem; background: linear-gradient(90deg, #eceff3 25%, #f6f8fa 37%, #eceff3 63%); background-size: 400% 100%; animation: bootshim 1.3s ease infinite }
+      @keyframes bootshim { 0% { background-position: 100% 50% } 100% { background-position: 0 50% } }
+      @media (prefers-reduced-motion: reduce) { .boot i { animation: none } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="boot" aria-busy="true" aria-label="Memuat"><i style="width:40%;height:1.6rem"></i><i style="height:5rem"></i><i style="height:12rem"></i></div></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

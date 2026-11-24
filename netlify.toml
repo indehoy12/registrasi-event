@@ -2,3 +2,9 @@
   command = "npm run build"
   publish = "dist"
   functions = "netlify/functions"
+
+# File hasil build bernama unik (hash), jadi aman disimpan browser selamanya: kunjungan berikutnya tidak mengunduh ulang.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

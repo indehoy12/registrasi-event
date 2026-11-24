@@ -1,23 +1,20 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Routes, Route, Navigate, NavLink, useNavigate } from 'react-router-dom'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from './firebase'
 import { Skel } from './ui'
-import { useSeminar } from './hooks'
+import { useSeminar, resetData } from './hooks'
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Seminar from './pages/Seminar'
-import Participants from './pages/Participants'
-import Import from './pages/Import'
-import Tickets from './pages/Tickets'
-import Distribution from './pages/Distribution'
-import Scanner from './pages/Scanner'
-import Checkins from './pages/Checkins'
-import Reports from './pages/Reports'
-import Settings from './pages/Settings'
-import PublicTicket from './pages/PublicTicket'
 
+// Setiap menu dimuat saat dibuka (bukan semuanya di awal), jadi halaman pertama jauh lebih ringan. Skeleton tampil selama menu dimuat.
+const Dashboard = lazy(() => import('./pages/Dashboard')), Seminar = lazy(() => import('./pages/Seminar')), Participants = lazy(() => import('./pages/Participants')),
+  Import = lazy(() => import('./pages/Import')), Tickets = lazy(() => import('./pages/Tickets')), Distribution = lazy(() => import('./pages/Distribution')),
+  Scanner = lazy(() => import('./pages/Scanner')), Checkins = lazy(() => import('./pages/Checkins')), Reports = lazy(() => import('./pages/Reports')),
+  Settings = lazy(() => import('./pages/Settings')), PublicTicket = lazy(() => import('./pages/PublicTicket'))
+const Muat = () => <div className="p-4 fit" style={{ maxWidth: 720, margin: '0 auto' }} aria-busy="true" aria-label="Memuat"><Skel w="40%" h="1.6rem" className="mb-3"/><Skel h="5rem" r="14px" className="mb-3"/><Skel h="12rem" r="14px"/></div>
+// Setelah masuk, menu lain dimuat diam-diam saat browser sedang senggang, supaya berpindah menu terasa instan.
+const PRA = { dashboard: () => import('./pages/Dashboard'), participants: () => import('./pages/Participants'), tickets: () => import('./pages/Tickets'), distribution: () => import('./pages/Distribution'), checkins: () => import('./pages/Checkins'), reports: () => import('./pages/Reports'), seminar: () => import('./pages/Seminar') }
 const AD = ['superadmin','admin'], ALL = ['superadmin','admin','petugas']
 const GROUPS = [
   ['', [['dashboard','Dashboard','speedometer2',AD]]],
@@ -31,14 +28,15 @@ const Judul = () => { const { sem } = useSeminar(); return <>{sem.title || 'Regi
 export default function App() {
   const [open, setOpen] = useState(false), [user, setUser] = useState(undefined), [role, setRole] = useState(null), nav = useNavigate()
   useEffect(() => onAuthStateChanged(auth, async (u) => {
-    if (!u) { setUser(null); setRole(null); return }
+    if (!u) { resetData(); setUser(null); setRole(null); return }
     const s = await getDoc(doc(db, 'users', u.uid))
     setRole(s.exists() && s.data().active === true ? s.data().role : null); setUser(u)
   }), [])
+  useEffect(() => { if (!role) return; const t = setTimeout(() => Object.values(PRA).forEach(f => f().catch(() => {})), 2500); return () => clearTimeout(t) }, [role])
   if (user === undefined) return <div className="p-4" style={{ maxWidth: 720, margin: '0 auto' }} aria-busy="true" aria-label="Memuat"><Skel w="40%" h="1.6rem" className="mb-3"/><Skel h="5rem" r="14px" className="mb-3"/><Skel h="12rem" r="14px"/></div>
-  if (!user || !role) return <Routes><Route path="/undangan/:token" element={<PublicTicket/>}/><Route path="/tiket/:token" element={<PublicTicket/>}/><Route path="/admin/login" element={<Login noAccess={!!user && !role}/>}/><Route path="*" element={<Navigate to="/admin/login"/>}/></Routes>
+  if (!user || !role) return <Suspense fallback={<Muat/>}><Routes><Route path="/undangan/:token" element={<PublicTicket/>}/><Route path="/tiket/:token" element={<PublicTicket/>}/><Route path="/admin/login" element={<Login noAccess={!!user && !role}/>}/><Route path="*" element={<Navigate to="/admin/login"/>}/></Routes></Suspense>
   const home = role === 'petugas' ? '/admin/scanner' : '/admin/dashboard', P = (roles, el) => roles.includes(role) ? el : <Navigate to={home}/>
-  return (<Routes>
+  return (<Suspense fallback={<Muat/>}><Routes>
     <Route path="/undangan/:token" element={<PublicTicket/>}/><Route path="/tiket/:token" element={<PublicTicket/>}/>
     <Route path="*" element={
       <div className="shell">
@@ -52,11 +50,11 @@ export default function App() {
           </nav>
           <div className="me"><div className="av">{(user.email || '?')[0].toUpperCase()}</div>
             <div className="nm"><div>{user.email}</div><small>{ROLE[role]}</small></div>
-            <button className="btn btn-outline-secondary btn-sm" title="Keluar" aria-label="Keluar" onClick={async () => { await signOut(auth); nav('/admin/login') }}><i className="bi bi-box-arrow-right"/></button></div>
+            <button className="btn btn-outline-secondary btn-sm" title="Keluar" aria-label="Keluar" onClick={async () => { await signOut(auth); resetData(); nav('/admin/login') }}><i className="bi bi-box-arrow-right"/></button></div>
         </aside>
         <div className="main">
           <div className="topbar"><button aria-label="Buka menu" onClick={() => setOpen(true)}><i className="bi bi-list"/></button><b className="brand-t"><Judul/></b></div>
-          <main className="content"><Routes>
+          <main className="content"><Suspense fallback={<Muat/>}><Routes>
             <Route path="/admin/login" element={<Navigate to={home}/>}/>
             <Route path="/admin/dashboard" element={P(AD, <Dashboard/>)}/>
             <Route path="/admin/seminar" element={P(AD, <Seminar/>)}/>
@@ -69,8 +67,8 @@ export default function App() {
             <Route path="/admin/reports" element={P(AD, <Reports/>)}/>
             <Route path="/admin/settings" element={P(['superadmin'], <Settings/>)}/>
             <Route path="*" element={<Navigate to={home}/>}/>
-          </Routes></main>
+          </Routes></Suspense></main>
         </div>
       </div>}/>
-  </Routes>)
+  </Routes></Suspense>)
 }

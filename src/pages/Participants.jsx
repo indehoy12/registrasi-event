@@ -1,5 +1,5 @@
 import { useDialog, Badge, Skel, SkelRows } from '../ui'
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'; import { Link } from 'react-router-dom'
+import { Fragment, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'; import { Link } from 'react-router-dom'
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore'
 import { auth, db } from '../firebase'; import { useColState, useSeminar, tgl, waNumber, validWa, validEmail, maskWa, maskEmail, hariList, hariTeks, normHari, cariCocok, hariPeserta, ckDay, urutNama } from '../hooks'
 const empty = { name:'', email:'', whatsapp:'', institution:'', pimpinan:'', domisili:'', wilayah:'', bidang:'', hari:'', status:'terdaftar' }
@@ -24,7 +24,7 @@ export default function Participants() {
   const ask = useDialog(), { sem } = useSeminar(), days = hariList(sem), multi = days.length > 1
   // Urutan daftar: Hari ke-1 paling atas, lalu Hari ke-2, lalu peserta Kedua hari; di tiap kelompok diurut abjad nama. Kegiatan 1 hari: abjad saja.
   const grupHari = (r) => { if (!multi) return 0; const h = hariPeserta(r, days); return h.length === days.length ? 2 : h[0] === 1 ? 0 : 1 }
-  const [raw, loading] = useColState('participants'), [cs] = useColState('checkins'), rows = useMemo(() => [...raw].sort((a, b) => grupHari(a) - grupHari(b) || urutNama(a, b)), [raw, days.join()]), [hal, setHal] = useState(1), [per, setPer] = useState(25), [f, setF] = useState(empty), [q, setQ] = useState(''), [edit, setEdit] = useState(null), [err, setErr] = useState(''), [fe, setFe] = useState({})
+  const [raw, loading] = useColState('participants'), [cs] = useColState('checkins'), rows = useMemo(() => [...raw].sort((a, b) => grupHari(a) - grupHari(b) || urutNama(a, b)), [raw, days.join()]), [hal, setHal] = useState(1), [per, setPer] = useState(25), [f, setF] = useState(empty), [q, setQ] = useState(''), qd = useDeferredValue(q), [edit, setEdit] = useState(null), [err, setErr] = useState(''), [fe, setFe] = useState({})
   const [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [ok, setOk] = useState(''), nameRef = useRef(null)
   const bukaTambah = () => { setEdit(null); setErr(''); setOk(''); setFe({}); setF({ ...empty, hari: multi ? '?' : '' }); setOpen(true) }   // hari '?' = belum memilih batch
   const bukaUbah = (r) => { setErr(''); setOk(''); setFe({}); setEdit(r.id); setF({ name: r.name, email: r.email || '', whatsapp: r.waAsli || r.whatsapp || '', institution: r.institution || '', pimpinan: r.pimpinan || '', domisili: r.domisili || '', wilayah: r.wilayah || '', bidang: r.bidang || '', hari: normHari(r.hari), status: r.status || 'terdaftar' }); setOpen(true) }
@@ -61,7 +61,7 @@ export default function Participants() {
   const sudah = useMemo(() => new Set(cs.map(c => c.participantId + '|' + ckDay(c, days))), [cs, days.join()])
   const hariStatus = (r) => [...new Set([...hariPeserta(r, days), ...days.flatMap((d, i) => sudah.has(r.id + '|' + d) ? [i + 1] : [])])].sort().map(n => ({ n, on: sudah.has(r.id + '|' + days[n - 1]) }))
   const statusTeks = (r) => hariStatus(r).map(s => (multi ? `Hari ${s.n}: ` : '') + (s.on ? 'Sudah check-in' : 'Belum check-in')).join('; ')
-  const list = rows.filter(r => cariCocok(q.trim(), [r.name, r.email, r.whatsapp, r.waAsli, r.institution, r.pimpinan, r.domisili, r.wilayah, r.bidang, multi ? hariTeks(r, days) : '', statusTeks(r)].join(' ')))
+  const list = rows.filter(r => cariCocok(qd.trim(), [r.name, r.email, r.whatsapp, r.waAsli, r.institution, r.pimpinan, r.domisili, r.wilayah, r.bidang, multi ? hariTeks(r, days) : '', statusTeks(r)].join(' ')))
   const jml = Math.max(1, Math.ceil(list.length / per)), page = Math.min(hal, jml), mulai = (page - 1) * per, tampil = list.slice(mulai, mulai + per)
   const nomorHal = (() => { const a = [...new Set([1, jml, page - 1, page, page + 1].filter(n => n >= 1 && n <= jml))].sort((x, y) => x - y), o = []; a.forEach((n, i) => { if (i && n - a[i - 1] > 1) o.push('…' + n); o.push(n) }); return o })()
   const inp = (k, p, extra = {}) => <input id={'pf-' + k} className={'form-control' + (fe[k] ? ' is-invalid' : '')} placeholder={p} value={f[k] || ''} autoComplete="off" disabled={busy} onChange={e => ubah(k, e.target.value)} {...extra}/>
