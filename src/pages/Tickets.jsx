@@ -22,7 +22,7 @@ function QrModal({ t, onClose, onPng }) {
       <div className={'qr-view' + (mati ? ' off' : '')}>{img ? <img src={img} alt={`Kode QR undangan ${t.participantName}`}/> : <Skel w="min(290px,100%)" h="290px" r="12px"/>}</div>
       <div className="code-chip mb-2">No. {showCode(t.id)}</div>
       <div className="mb-3"><Badge s={t.status}/></div>
-      {mati && <div className="small text-danger mb-3">Undangan ini sudah dicabut, QR di atas tidak bisa dipakai untuk check-in.</div>}
+      {mati && <div className="small text-danger mb-3">Undangan sudah dicabut.</div>}
       <div className="d-grid gap-2"><button className="btn btn-primary" autoFocus onClick={onClose}>Tutup</button>
         <button className="btn btn-outline-primary" disabled={!img} onClick={onPng}><i className="bi bi-download"/> Unduh PNG</button></div>
     </div></div>
@@ -48,14 +48,14 @@ export default function Tickets() {
           try { const j = await sendTicketEmail(qe[i].id); ok++; if (j.warn) gagal.push(`${qe[i].p.name} (terkirim, status tidak tersimpan; jangan kirim ulang)`) } catch (e) { gagal.push(`${qe[i].p.name} (${e.message})`) }
           if (i < qe.length - 1) await wait(1500 + Math.random() * 1000) }
         await addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'kirim email otomatis', sent: ok, failed: qe.length - ok })
-        info += ` Email: ${ok} terkirim, ${qe.length - ok} gagal, ${list.length - qe.length} tanpa email valid.${rincian(gagal)} Yang belum terkirim bisa diulang di menu Distribusi.` }
+        info += ` Email: ${ok} terkirim, ${qe.length - ok} gagal, ${list.length - qe.length} tanpa email valid.${rincian(gagal)}` }
       if (auto && mapsOk) { const q = made.filter(x => x.p.whatsapp), gagal = []; let ok = 0
         for (let i = 0; i < q.length; i++) { setMsg(`${info} Mengirim WhatsApp ${i + 1} dari ${q.length}…`)
           try { const j = await sendTicketWA(q[i].id); ok++; if (j.warn) gagal.push(`${q[i].p.name} (terkirim, status tidak tersimpan; jangan kirim ulang)`) } catch (e) { gagal.push(`${q[i].p.name} (${e.message})`) }
           if (i < q.length - 1) await wait(3000 + Math.random() * 3000) }
         await addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'kirim WhatsApp otomatis', sent: ok, failed: q.length - ok })
-        info += ` WhatsApp: ${ok} terkirim, ${q.length - ok} gagal, ${list.length - q.length} tanpa nomor.${rincian(gagal)} Yang belum terkirim bisa diulang di menu Distribusi.` }
-      if (!(auto && mapsOk) && !(autoMail && mapsOk)) info += ' Undangan belum dikirim ke peserta. Kirim lewat menu Kirim undangan bila sudah siap.'
+        info += ` WhatsApp: ${ok} terkirim, ${q.length - ok} gagal, ${list.length - q.length} tanpa nomor.${rincian(gagal)}` }
+      if (!(auto && mapsOk) && !(autoMail && mapsOk)) info += ' Belum dikirim ke peserta.'
       setMsg(info) } catch (e) { setMsg('Gagal membuat undangan: ' + e.message) } setBusy(false) }
   const png = async (t, p) => save(await QRCode.toDataURL(t.id, { width: 700, margin: 2 }), `undangan-${(p?.name || t.id).replace(/[^\w-]+/g, '_')}.png`)
   const zip = async () => { setBusy(true); const z = new JSZip()

@@ -52,15 +52,15 @@ export default function Import() {
     setBusy(false) }
   const tpl = async () => { try { const { unduhTemplate } = await import('../excel'); await unduhTemplate() } catch (ex) { setErr('Gagal membuat template: ' + (ex.message || ex)) } }
   return <><h1 className="h4 mb-3">Import peserta</h1>{msg && <div className="alert alert-success" role="status">{msg}</div>}{err && <div className="alert alert-danger" role="alert">{err}</div>}
-    <p className="text-muted">Kolom file: Email Address, Nama Perusahaan/Nama Individu, Nama Pimpinan, Nama PIC/Admin, No HP PIC/Admin, Domisili, Wilayah Operasional Perusahaan, Jenis Usaha. Kolom wajib: Nama PIC/Admin saja, yang lain boleh kosong. Bila kegiatan 2 hari dan pesertanya berbeda tiap hari, isi kolom <b>Hari</b> dengan 1 atau 2 (kosong = hadir di kedua hari). <button className="btn btn-link p-0" onClick={tpl}>Unduh template</button></p>
-    <div className="form-check mb-2"><input className="form-check-input" type="checkbox" id="semua" checked={semua} disabled={busy} onChange={e => ubahSemua(e.target.checked)}/><label className="form-check-label" htmlFor="semua">Import semua baris, termasuk duplikat (nomor WhatsApp sama atau data persis sama dengan peserta lain)</label></div>
+    <p className="text-muted">Kolom: Email Address, Nama Perusahaan/Nama Individu, Nama Pimpinan, Nama PIC/Admin, No HP PIC/Admin, Domisili, Wilayah Operasional Perusahaan, Jenis Usaha, Hari (1 atau 2, kosong = kedua hari). Yang wajib hanya Nama PIC/Admin. <button className="btn btn-link p-0" onClick={tpl}>Unduh template</button></p>
+    <div className="form-check mb-2"><input className="form-check-input" type="checkbox" id="semua" checked={semua} disabled={busy} onChange={e => ubahSemua(e.target.checked)}/><label className="form-check-label" htmlFor="semua">Import semua baris, termasuk duplikat</label></div>
     {loadEx ? <Skel w="400px" h="2.4rem" r="8px" className="mb-3"/> : <input type="file" accept=".xlsx,.xls,.csv" className="form-control mb-3" style={{maxWidth:400}} disabled={busy} onChange={read}/>}
     {reading && <div aria-busy="true" aria-label="Membaca file"><Skel w="40%" className="mb-2"/><Skel h="1.1rem" className="mb-1"/><Skel h="1.1rem" className="mb-1"/><Skel h="1.1rem" className="mb-3"/></div>}
-    {semua && sama > 0 && <div className="alert alert-info">{sama} baris sama persis dengan peserta yang sudah ada di sistem, tetap ikut diimport karena mode <b>Import semua baris</b> aktif.</div>}
-    {skipped > 0 && <div className="alert alert-warning">{skipped} baris dilewati karena duplikat (nomor WhatsApp sama, atau nama, email, dan perusahaan sama untuk peserta tanpa nomor).</div>}
+    {semua && sama > 0 && <div className="alert alert-info">{sama} baris sama dengan data yang sudah ada, tetap diimport.</div>}
+    {skipped > 0 && <div className="alert alert-warning">{skipped} baris dilewati karena duplikat.</div>}
     {bad.length > 0 && <div className="alert alert-danger"><b>{bad.length} baris tidak diimport:</b><ul className="mb-0">{bad.slice(0, 10).map((m, i) => <li key={i}>{m}</li>)}</ul>{bad.length > 10 && <div>…dan {bad.length - 10} baris lainnya.</div>}</div>}
-    {rows.length > 0 && multi && !adaHari && <div className="alert alert-warning">Kolom <b>Hari</b> tidak ada di file ini, jadi semua peserta dianggap hadir di <b>kedua hari</b>. Tambahkan kolom Hari (1 atau 2) bila pesertanya berbeda tiap hari.</div>}
-    {rows.length > 0 && <><p>{rows.length} baris siap diimport. Pratinjau 5 baris pertama:</p>
+    {rows.length > 0 && multi && !adaHari && <div className="alert alert-warning">Kolom <b>Hari</b> tidak ada, semua peserta dianggap hadir di <b>kedua hari</b>.</div>}
+    {rows.length > 0 && <><p>{rows.length} baris siap diimport.</p>
       <div className="table-responsive"><table className="table table-sm"><tbody>{rows.slice(0,5).map((r,i)=><tr key={i}><td>{r.email}</td><td>{r.institution}{r.pimpinan && <div className="small text-muted">{r.pimpinan}</div>}</td><td>{r.name}</td><td>{r.whatsapp}</td><td>{r.domisili}</td><td>{r.wilayah}</td><td>{r.bidang}</td>{multi && <td>{hariTeks(r, days)}</td>}</tr>)}</tbody></table></div>
       <button className={'btn btn-primary' + (busy ? ' is-busy' : '')} aria-busy={busy} disabled={busy} onClick={go}>{`Import ${rows.length} peserta`}</button></>}</>
 }

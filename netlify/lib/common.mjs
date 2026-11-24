@@ -76,33 +76,35 @@ export function isiPesan({ pf, sf, maps, base, ticketId, adaGambar }) {
   const detail = [
     ...(dua ? [d1 && `Hari ke-1 : ${tgl(d1)}`, `Hari ke-2 : ${tgl(d2)}`] : [dSatu && `Hari/Tanggal : ${tgl(dSatu)}`]),
     waktu && `Waktu : ${waktu}`, place && `Tempat : ${place}`, agenda && `Agenda : ${agenda}`].filter(Boolean)
+  // Isi ringkas, mengikuti surat undangan: LULUS evaluasi, rincian kegiatan, lokasi, QR, lalu ketentuan singkat.
+  const wakil = 'dan dapat diwakilkan dengan menyebutkan nama perwakilan kepada petugas'
+  const ketentuan = label ? `Berlaku untuk 1 (satu) peserta pada ${label} (${tgl(dSatu)}), ${wakil}. Kehadiran menjadi salah satu pertimbangan penetapan Daftar Rekanan Mampu (DRM) PT Kawasan Industri Terpadu Batang.`
+    : dua ? `Berlaku untuk 1 (satu) peserta di kedua hari (dipindai satu kali tiap hari), ${wakil}.`
+    : `Berlaku untuk 1 (satu) peserta, satu kali registrasi, ${wakil}.`
   const teks = [
     ...sapaan(pf),
     '',
-    ...(label ? ['Dengan hormat, berdasarkan hasil evaluasi administrasi dan kualifikasi penyedia, kami sampaikan bahwa perusahaan Bapak/Ibu dinyatakan LULUS dan berhak mengikuti tahapan selanjutnya.', '', `Untuk itu kami mengundang Bapak/Ibu hadir pada kegiatan (${B1}${label}${B2}):`] : ['Dengan hormat, kami mengundang Bapak/Ibu untuk hadir pada kegiatan:']),
+    label ? `Berdasarkan hasil evaluasi administrasi dan kualifikasi penyedia, perusahaan Bapak/Ibu dinyatakan ${B1}LULUS${B2} dan berhak mengikuti tahapan selanjutnya. Kami mengundang Bapak/Ibu hadir pada:` : 'Kami mengundang Bapak/Ibu hadir pada kegiatan:',
     '',
     `${B1}${title}${label ? ' - ' + label : ''}${B2}`,
     ...detail,
     '',
-    'Titik lokasi (Google Maps):',
+    'Lokasi (Google Maps):',
     maps,
     '',
     adaGambar
-      ? 'Sebagai tanda masuk, kami sampaikan undangan elektronik berupa kode QR yang terlampir pada pesan ini. Mohon menunjukkan kode QR tersebut kepada petugas pada saat kedatangan.'
-      : 'Sebagai tanda masuk, kami sampaikan undangan elektronik berupa kode QR yang dapat dibuka melalui tautan berikut. Mohon menunjukkannya kepada petugas pada saat kedatangan:',
-    ...(adaGambar ? ['', 'Apabila kode QR tidak tampil, undangan dapat dibuka melalui tautan berikut:'] : []),
+      ? 'Tunjukkan kode QR terlampir kepada petugas saat kedatangan. Jika QR tidak tampil, buka:'
+      : 'Tunjukkan kode QR pada tautan berikut kepada petugas saat kedatangan:',
     link,
     '',
-    'Apabila kode QR tidak dapat dipindai, petugas dapat mencari data Bapak/Ibu berdasarkan nama perusahaan.',
+    'Jika QR tidak terbaca, sebutkan nama perusahaan kepada petugas.',
     '',
-    label ? `Undangan ini berlaku untuk 1 (satu) peserta. Kode QR ini berlaku pada jadwal ${label} (${tgl(dSatu)}). Kehadiran Bapak/Ibu menjadi salah satu pertimbangan penetapan sebagai Daftar Rekanan Mampu (DRM) PT Kawasan Industri Terpadu Batang. Apabila Bapak/Ibu berhalangan hadir, undangan dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.`
-      : dua ? 'Undangan ini berlaku untuk 1 (satu) peserta. Kode QR yang sama dipakai pada kedua hari kegiatan, dan dipindai satu kali setiap hari. Apabila Bapak/Ibu berhalangan hadir, undangan dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.'
-       : 'Undangan ini berlaku untuk 1 (satu) peserta. Kode QR ini berlaku untuk satu kali registrasi. Apabila Bapak/Ibu berhalangan hadir, undangan dapat diwakilkan kepada orang lain dengan menunjukkan kode QR ini kepada petugas dan menyebutkan nama perwakilan.',
+    ketentuan,
     '',
-    'Atas perhatian dan kehadiran Bapak/Ibu, kami ucapkan terima kasih.',
+    'Atas perhatian dan kerja sama Bapak/Ibu, kami ucapkan terima kasih.',
     '',
     'Hormat kami,',
-    `Panitia ${title}`,
+    'PT Kawasan Industri Terpadu Batang',
   ].join('\n')
   return { teks, title, link, nomor, label }
 }
@@ -121,18 +123,12 @@ export function isiPesanArahEmail({ pf, sf, base, ticketId }) {
   // Pesan WhatsApp sengaja singkat: rincian lengkap dan QR ada di email.
   // Yang disebut di WhatsApp adalah NAMA pengirim email (sama dengan MAIL_FROM_NAME), bukan alamat Gmail-nya, supaya peserta tahu email mana yang dicari (termasuk di folder Spam).
   const dari = namaPengirim()
-  const kapan = label ? [dB && tgl(dB), time && `pukul ${jam(time)}${timeEnd ? ' - ' + jam(timeEnd) : ''} WIB`, place].filter(Boolean).join(', ') : ''
   const teks = [
     ...sapaan(pf),
     '',
-    `Bapak/Ibu kami undang pada ${B1}${title}${label ? ' - ' + label : ''}${B2}${kapan ? ': ' + kapan : ''}.`,
+    `Undangan ${B1}${title}${label ? ' - ' + label : ''}${B2} sudah kami kirim ke email ${email} dari ${dari}. Mohon cek kotak masuk atau folder Spam.`,
     '',
-    `Undangan QR dan rincian lengkap sudah kami kirim ke email ${email} dari ${dari}. Mohon cek kotak masuk atau folder Spam.`,
-    '',
-    ...(base && ticketId ? ['Undangan (kode QR) juga dapat dibuka langsung melalui tautan berikut:', `${base}/undangan/${ticketId}`, ''] : []),
-    'Undangan ini berlaku untuk 1 (satu) peserta.',
-    '',
-    `Mohon balas pesan ini dengan ${B1}Hadir${B2} sebagai konfirmasi bahwa Bapak/Ibu sudah menerima undangan ini.`,
+    `Mohon balas ${B1}Hadir${B2} bila undangan sudah diterima.`,
     '',
     `Terima kasih. Panitia ${title}`,
   ].join('\n')

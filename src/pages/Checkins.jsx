@@ -14,20 +14,19 @@ export default function Checkins({ canEdit }) {
     && cariCocok(q.trim(), [fmt(c.checkedInAt), multi ? hariLabel(days, ckDay(c, days)) : '', c.participantName, inst(c), email(c), c.isRepresentative ? 'Perwakilan' : 'Peserta', c.representativeName, c.via === 'manual' ? 'Manual' : 'QR', c.officerEmail].join(' '), showCode(c.ticketId)))
 
   const undo = async (c) => {
-    if (!await ask({ title: 'Batalkan check-in?', text: `Check-in ${c.participantName} dihapus dan undangannya bisa dipakai lagi. Gunakan ini jika petugas salah memproses.`, ok: 'Batalkan check-in', danger: true, icon: 'arrow-counterclockwise' })) return
+    if (!await ask({ title: 'Batalkan check-in?', text: `Check-in ${c.participantName} akan dibatalkan.`, ok: 'Batalkan check-in', danger: true, icon: 'arrow-counterclockwise' })) return
     try { await batalkanCheckin(c, ckDay(c, days)); log('batalkan check-in', c); setMsg(`Check-in ${c.participantName} dibatalkan.`)
-    } catch (e) { setMsg('Gagal membatalkan: ' + (e.code === 'permission-denied' ? 'ditolak oleh Firestore Rules (publish firestore.rules terbaru).' : e.message)) } }
+    } catch (e) { setMsg('Gagal membatalkan: ' + (e.code === 'permission-denied' ? 'akses ditolak.' : e.message)) } }
 
   const saveEdit = async (e) => { e.preventDefault()
     const name = ed.who === 'wakil' ? ed.name.trim() : ''; if (ed.who === 'wakil' && !name) return
     try { await updateDoc(doc(db, 'checkins', ed.c.id), { isRepresentative: !!name, representativeName: name || null })
       log('ubah data kehadiran', ed.c); setMsg('Data kehadiran diperbarui.'); setEd(null)
-    } catch (er) { setMsg('Gagal menyimpan: ' + (er.code === 'permission-denied' ? 'ditolak oleh Firestore Rules (publish firestore.rules terbaru).' : er.message)); setEd(null) } }
+    } catch (er) { setMsg('Gagal menyimpan: ' + (er.code === 'permission-denied' ? 'akses ditolak.' : er.message)); setEd(null) } }
 
   const Chip = ({ k, l }) => <button className={`btn btn-sm ${f === k ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => setF(k)}>{l}</button>
   return <>
     <h1 className="h4">Riwayat kehadiran ({loading ? <Skel w="2rem" h="1rem" className="align-middle"/> : cs.length})</h1>
-    <p className="sub">Daftar semua peserta yang sudah check-in, diurutkan per hari lalu abjad Nama PIC/Admin.{canEdit ? ' Salah input? Gunakan Ubah atau Batalkan.' : ''}</p>
     {msg && <div className="alert alert-info" role="status">{msg}</div>}
     <div className="d-flex gap-2 flex-wrap mb-2"><input className="form-control" style={{ maxWidth: 360 }} aria-label="Cari riwayat kehadiran" placeholder="Cari nama PIC, perusahaan, atau email" type="search" autoComplete="off" value={q} onChange={e => setQ(e.target.value)}/>
       {!loading && q.trim() && <span className="small text-muted align-self-center" role="status" aria-live="polite">{list.length} dari {cs.length} data</span>}

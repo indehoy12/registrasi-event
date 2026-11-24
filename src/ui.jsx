@@ -82,14 +82,13 @@ export function CheckinModal({ name, institution, code, hari, onRep, onUndo, onC
           <button type="button" className="btn btn-outline-secondary btn-lg" disabled={busy} onClick={() => setEdit(false)}>Batal</button></div>
       </form>}
       {!edit && <div className="d-grid gap-2 mt-3">
-        <button className="btn btn-success btn-lg" autoFocus onClick={onClose}>{saved ? 'Selesai' : 'OK, lanjut scan'}</button>
+        <button className="btn btn-success btn-lg" autoFocus onClick={onClose}>{saved ? 'Selesai' : 'OK'}</button>
         {!saved && <button className="btn btn-outline-secondary" onClick={() => setEdit(true)}><i className="bi bi-person-badge"/> Diwakilkan?</button>}
         {!conf ? <button className="btn btn-link text-danger btn-sm" onClick={() => setConf(true)}><i className="bi bi-arrow-counterclockwise"/> Salah scan? Batalkan</button>
           : <div className="ck-conf"><div className="fw-semibold mb-2">Batalkan check-in {name}?</div>
               <div className="d-flex gap-2"><button className={'btn btn-danger flex-fill' + (undoing ? ' is-busy' : '')} aria-busy={undoing} disabled={undoing} onClick={undo}>Ya, batalkan</button>
                 <button className="btn btn-outline-secondary" disabled={undoing} onClick={() => setConf(false)}>Tidak</button></div></div>}
         {err && <div className="text-danger small">{err}</div>}
-        <div className="small text-muted">Popup tertutup setelah Anda menekan OK. Data masih bisa diubah atau dibatalkan dari daftar Check-in terakhir selama 10 menit.</div>
       </div>}
     </div></div>
 }
@@ -101,4 +100,4 @@ export const SkelList = ({ rows = 3 }) => <div aria-busy="true" aria-label="Memu
 
 // Peringatan bila titik lokasi Maps belum diisi (muncul di Dashboard, Undangan, dan Distribusi)
 export const MapsWarn = ({ loaded, mapsOk }) => loaded && !mapsOk ? <div className="alert alert-warning d-flex gap-2 align-items-start" role="alert"><i className="bi bi-geo-alt-fill fs-5"/>
-  <div><b>Titik lokasi Google Maps belum diisi.</b> Pengiriman undangan lewat WhatsApp ditahan sampai lokasi diisi, supaya peserta tidak tersesat. <Link to="/admin/seminar">Isi sekarang</Link></div></div> : null
+  <div><b>Lokasi Google Maps belum diisi.</b> Pengiriman undangan ditahan. <Link to="/admin/seminar">Isi sekarang</Link></div></div> : null

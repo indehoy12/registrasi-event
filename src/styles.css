@@ -1685,3 +1685,110 @@ h1.h4 {
   flex: 1;
   min-width: 0;
 }
+
+/* Dashboard: judul dengan jam langsung, lalu pilihan hari dan tombol scan */
+.dash-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.dash-clock {
+  text-align: right;
+  line-height: 1.2;
+}
+.dash-clock b {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.dash-clock b span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.dash-clock small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.dash-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+.dash-days {
+  display: flex;
+  gap: 0.4rem;
+  flex: 1 1 100%;
+}
+.dash-days .btn {
+  flex: 1;
+  min-height: 2.5rem;
+}
+.dash-scan {
+  order: -1;
+  flex: 1 1 100%;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+@media (min-width: 576px) {
+  .dash-clock b {
+    font-size: 1.75rem;
+  }
+  .dash-days {
+    flex: 0 1 auto;
+  }
+  .dash-days .btn {
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+  .dash-scan {
+    order: 0;
+    flex: 0 0 auto;
+    margin-left: auto;
+    min-height: 0;
+  }
+}
+@media (max-width: 359.98px) {
+  .dash-clock b {
+    font-size: 1.25rem;
+  }
+}
+
+/* Distribusi: pengaturan kirim, dua kolom di HP dan satu baris di layar lebar */
+.send-opts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  align-items: end;
+  margin-bottom: 0.75rem;
+}
+.send-opts label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+.send-opts > :first-child,
+.send-opts > .btn {
+  grid-column: 1 / -1;
+}
+@media (min-width: 768px) {
+  .send-opts {
+    grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)) auto;
+    max-width: 880px;
+  }
+  .send-opts > :first-child,
+  .send-opts > .btn {
+    grid-column: auto;
+  }
+}

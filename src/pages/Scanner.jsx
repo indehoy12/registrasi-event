@@ -89,7 +89,7 @@ export default function Scanner() {
         if (msg) throw Object.assign(new Error(msg), { warn: !!usedOn(t, dayRef.current, daysRef.current) })
         await checkIn(t.id, 'qr')
       } catch (e) { setRes({ ok: false, warn: !!e.warn, title: e.warn ? 'Undangan sudah dipakai' : 'Undangan tidak valid', text: e.message }) }
-    }).then(() => setCamReady(true)).catch(() => setCamErr('Kamera tidak dapat dibuka. Izinkan akses kamera di browser lalu tekan "Coba lagi", atau gunakan tab Input manual.'))
+    }).then(() => setCamReady(true)).catch(() => setCamErr('Kamera tidak bisa dibuka. Izinkan akses kamera, atau pakai Input manual.'))
     return () => { started.then(() => s.isScanning && s.stop()).then(() => s.clear()).catch(() => {}) }
   }, [mode, camKey])
 
@@ -116,12 +116,12 @@ export default function Scanner() {
   }
   const flash = (t) => { setNote(t); setTimeout(() => setNote(''), 6000) }
   // Dari popup (tepat setelah scan)
-  const batal = async () => { await batalkan({ id: res.checkinId, ticketId: res.ticketId, day: res.day, participantName: res.name }); flash(`Check-in ${res.name} dibatalkan. Undangannya bisa dipindai lagi.`); close() }
+  const batal = async () => { await batalkan({ id: res.checkinId, ticketId: res.ticketId, day: res.day, participantName: res.name }); flash(`Check-in ${res.name} dibatalkan.`); close() }
   // Dari daftar "Check-in terakhir" (setelah popup ditutup), dengan konfirmasi
   const batalDaftar = async (c) => {
     lock.current = true
-    const ya = await ask({ title: 'Batalkan check-in?', text: `Check-in ${c.participantName} dihapus dan QR-nya bisa dipindai lagi.`, ok: 'Batalkan check-in', danger: true, icon: 'arrow-counterclockwise' })
-    if (ya) { try { await batalkan(c); flash(`Check-in ${c.participantName} dibatalkan. Undangannya bisa dipindai lagi.`) } catch { flash('Gagal membatalkan. Waktu koreksi 10 menit mungkin sudah lewat, hubungi admin.') } }
+    const ya = await ask({ title: 'Batalkan check-in?', text: `Check-in ${c.participantName} akan dibatalkan.`, ok: 'Batalkan check-in', danger: true, icon: 'arrow-counterclockwise' })
+    if (ya) { try { await batalkan(c); flash(`Check-in ${c.participantName} dibatalkan.`) } catch { flash('Gagal membatalkan. Waktu 10 menit mungkin sudah lewat.') } }
     if (!res) lock.current = false
   }
   const simpanEd = async (e) => {
@@ -129,7 +129,7 @@ export default function Scanner() {
     try { await updateDoc(doc(db, 'checkins', ed.c.id), { isRepresentative: !!name, representativeName: name || null })
       addDoc(collection(db, 'auditLogs'), { at: serverTimestamp(), actor: auth.currentUser.email, action: 'ubah perwakilan', participant: ed.c.participantName, representative: name || null }).catch(() => {})
       flash(`Data ${ed.c.participantName} diperbarui.`)
-    } catch { flash('Gagal menyimpan. Waktu koreksi 10 menit mungkin sudah lewat, hubungi admin.') }
+    } catch { flash('Gagal menyimpan. Waktu 10 menit mungkin sudah lewat.') }
     setEd(null); if (!res) lock.current = false
   }
   const bukaEd = (c) => { lock.current = true; setEd({ c, who: c.isRepresentative ? 'wakil' : 'sendiri', name: c.representativeName || '' }) }
@@ -142,13 +142,13 @@ export default function Scanner() {
 
   return <>
     <div className="d-flex gap-2 flex-wrap align-items-end">
-      <div className="me-auto"><h1 className="h4">Scan dan check-in{multi && <span className="badge text-bg-success ms-2 align-middle fs-6">Hari ke-{dayNo}</span>}</h1><p className="sub mb-0">Arahkan kamera ke QR undangan. Peserta langsung tercatat hadir.</p></div>
+      <div className="me-auto"><h1 className="h4">Scan dan check-in{multi && <span className="badge text-bg-success ms-2 align-middle fs-6">Hari ke-{dayNo}</span>}</h1></div>
       <div className="scan-count" aria-live="polite">{tkLoaded ? <><b>{hadir}</b><span> / {aktif.length}</span><small>sudah check-in</small></> : <Skel w="9rem" h="2rem" r="10px"/>}</div>
     </div>
     {multi && <div className="mt-3"><div className="who" style={{ maxWidth: 420 }} role="radiogroup" aria-label="Hari kegiatan">
       {days.map(d => <button type="button" role="radio" aria-checked={d === day} key={d} className={d === day ? 'on' : ''} style={{ minHeight: '3rem', flexDirection: 'row', justifyContent: 'center', gap: '.4rem' }} onClick={() => setPick(d)}><i className="bi bi-calendar-check" style={{ fontSize: '1.1rem' }}/>{hariLabel(days, d)}</button>)}</div>
-      {!days.includes(hariKunci()) && <div className="small text-warning-emphasis mt-1"><i className="bi bi-exclamation-triangle-fill"/> Tanggal hari ini tidak sama dengan jadwal kegiatan. Pastikan hari yang dipilih sudah benar.</div>}</div>}
-    {semLoaded && !sem.date && <div className="alert alert-danger mt-3 mb-0" role="alert"><i className="bi bi-exclamation-octagon-fill"/> Tanggal acara belum diisi, jadi check-in dinonaktifkan. Minta admin mengisinya di menu <b>Info seminar</b>.</div>}
+      {!days.includes(hariKunci()) && <div className="small text-warning-emphasis mt-1"><i className="bi bi-exclamation-triangle-fill"/> Tanggal hari ini bukan hari acara. Pastikan hari yang dipilih benar.</div>}</div>}
+    {semLoaded && !sem.date && <div className="alert alert-danger mt-3 mb-0" role="alert"><i className="bi bi-exclamation-octagon-fill"/> Tanggal acara belum diisi. Isi di menu <b>Info acara</b>.</div>}
     {note && <div className="alert alert-warning mt-3 mb-0" role="status"><i className="bi bi-arrow-counterclockwise"/> {note}</div>}
     <div className="scan mt-3">
       <div>
@@ -156,33 +156,33 @@ export default function Scanner() {
         {mode === 'kamera' ? <>
           {camErr && <div className="alert alert-danger d-flex gap-2 align-items-center flex-wrap"><span className="flex-fill">{camErr}</span><button className="btn btn-sm btn-outline-danger" onClick={() => setCamKey(k => k + 1)}>Coba lagi</button></div>}
           <div className="reader-wrap"><div id="reader"/>{!camReady && !camErr && <div className="reader-skel" aria-busy="true" aria-label="Membuka kamera"><Skel h="100%" r="14px"/></div>}</div>
-          <p className="small text-muted mt-2 mb-0">QR tidak terbaca atau peserta lupa membawa undangan? Pilih tab <b>Input manual</b> lalu cari berdasarkan nama.</p>
+          <p className="small text-muted mt-2 mb-0">QR tidak terbaca? Pakai tab <b>Input manual</b>.</p>
         </> : <form className="panel" onSubmit={cari}>
           <label htmlFor="kode" className="form-label fw-semibold">Cari peserta atau nomor undangan</label>
           <input id="kode" ref={codeRef} type="search" className="form-control form-control-lg" placeholder="Cari nama" value={code} autoComplete="off" autoCapitalize="off" spellCheck="false"
             onChange={e => setCode(e.target.value)}/>
-          <div className="form-text">Hasil muncul saat mengetik. Sentuh nama peserta untuk langsung check-in. Huruf besar atau kecil tidak masalah.</div>
-          {listErr && <div className="alert alert-danger mt-2 mb-0">Pencarian belum bisa dipakai karena akses data undangan ditolak. Minta Super Admin mem-publish firestore.rules versi terbaru.</div>}
+          <div className="form-text">Sentuh nama untuk check-in.</div>
+          {listErr && <div className="alert alert-danger mt-2 mb-0">Akses data undangan ditolak. Hubungi Super Admin.</div>}
           {!listErr && q && !tkLoaded && <div className="mt-2" aria-busy="true"><Skel h="3.6rem" r="12px" className="mb-2"/><Skel h="3.6rem" r="12px"/></div>}
           {!listErr && q && tkLoaded && <div className="hits mt-2" role="listbox" aria-label="Hasil pencarian">
             {hits.slice(0, 6).map(t => <button type="button" role="option" key={t.id} className={`hit ${st(t)}`} disabled={busy} onClick={() => pilih(t)}>
               <span className="flex-fill text-start"><b>{t.participantName}</b><small className="d-block text-muted">{perusahaanTeks(t) || 'Tanpa perusahaan'} · <span className="tk-code">{showCode(t.id)}</span></small></span>
               {st(t) === 'aktif' ? <span className="hit-go"><i className="bi bi-check2-circle"/> Check-in</span> : st(t) === 'terpakai' ? <span className="badge text-bg-warning">Sudah hadir</span> : st(t) === 'lain' ? <span className="badge text-bg-secondary">Bukan jadwalnya</span> : <span className="badge text-bg-danger">Dinonaktifkan</span>}</button>)}
-            {hits.length > 6 && <div className="small text-muted text-center py-1">Masih ada {hits.length - 6} hasil lain. Ketik lebih lengkap untuk mempersempit.</div>}
+            {hits.length > 6 && <div className="small text-muted text-center py-1">{hits.length - 6} hasil lain. Ketik lebih lengkap.</div>}
             {!hits.length && <div className="text-muted text-center py-3">Tidak ditemukan. Periksa ejaan nama atau nomor undangan.</div>}
           </div>}
         </form>}
       </div>
       <div>
         <div className="panel text-center text-muted py-4"><i className={`bi bi-${mode === 'kamera' ? 'upc-scan' : 'keyboard'} fs-1 d-block mb-2`}/>
-          {mode === 'kamera' ? 'Menunggu QR undangan…' : 'Menunggu nomor undangan…'}<div className="small">Hasil check-in muncul sebagai popup.</div></div>
+          {mode === 'kamera' ? 'Menunggu QR undangan…' : 'Menunggu nomor undangan…'}</div>
         <div className="panel">
           <div className="fw-semibold mb-1">Check-in terakhir</div>
           {loadCk && <SkelList rows={3}/>}
           {!loadCk && checkins.filter(c => ckDay(c, days) === day).slice(0, 8).map(c => <div className="recent" key={c.id}><div><div>{c.participantName}</div>{c.isRepresentative && <small>Diwakili {c.representativeName}</small>}</div>
             <div className="text-end"><small>{jam(c.checkedInAt)}</small>{bisaKoreksi(c) && <div className="text-nowrap"><button className="btn btn-link btn-sm p-0 me-2" onClick={() => bukaEd(c)}>Ubah</button><button className="btn btn-link btn-sm text-danger p-0" onClick={() => batalDaftar(c)}>Batalkan</button></div>}</div></div>)}
           {!loadCk && !checkins.some(c => ckDay(c, days) === day) && <div className="small text-muted">Belum ada yang check-in.</div>}
-          {!loadCk && checkins.some(bisaKoreksi) && <div className="small text-muted mt-2">Salah peserta atau perwakilan? Tekan <b>Ubah</b> atau <b>Batalkan</b>, tersedia 10 menit setelah check-in.</div>}
+          {!loadCk && checkins.some(bisaKoreksi) && <div className="small text-muted mt-2"><b>Ubah</b> atau <b>Batalkan</b> tersedia 10 menit.</div>}
         </div>
       </div>
     </div>

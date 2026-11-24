@@ -10,11 +10,11 @@ export default function PublicTicket() {
   // QR dan info seminar dimuat sekali; status undangan dipantau langsung agar banner muncul otomatis saat petugas check-in
   useEffect(() => { (async () => { try {
     setImg(await QRCode.toDataURL(token, { width: 700, margin: 2 }))
-    const m = await getDoc(doc(db, 'seminar', 'main')); if (m.exists()) setSem(m.data()); setSemReady(true) } catch { setSemReady(true); setErr('Undangan tidak dapat dimuat saat ini. Silakan muat ulang halaman atau coba beberapa saat lagi.') } })() }, [token])
+    const m = await getDoc(doc(db, 'seminar', 'main')); if (m.exists()) setSem(m.data()); setSemReady(true) } catch { setSemReady(true); setErr('Undangan tidak dapat dimuat. Muat ulang halaman.') } })() }, [token])
   useEffect(() => onSnapshot(doc(db, 'tickets', token),
-    s => { if (!s.exists()) return setErr('Undangan tidak ditemukan. Mohon periksa kembali tautan yang Anda terima atau hubungi panitia penyelenggara.')
+    s => { if (!s.exists()) return setErr('Undangan tidak ditemukan. Periksa tautan atau hubungi panitia.')
       const d = s.data(), n = Object.keys(d.usedDays || {}).length; if (prev.current !== null && n > prev.current) navigator.vibrate?.([100, 60, 100]); prev.current = n; setT(d); setErr('') },
-    () => setErr('Undangan tidak dapat dimuat saat ini. Silakan muat ulang halaman atau coba beberapa saat lagi.')), [token])
+    () => setErr('Undangan tidak dapat dimuat. Muat ulang halaman.')), [token])
 
   const kode = showCode(token)
   const waktu = sem.time ? `Pukul ${sem.time.replace(':', '.')}${sem.timeEnd ? ' - ' + sem.timeEnd.replace(':', '.') : ''} WIB` : ''
@@ -41,8 +41,8 @@ export default function PublicTicket() {
     const q = new Image(); q.src = img; await new Promise(r => { q.onload = r })
     x.drawImage(q, (W - 600) / 2, y + 10, 600, 600); y += 660
     x.fillStyle = '#667085'; x.font = `500 24px ${F}`; x.textAlign = 'center'
-    x.fillText('Tunjukkan kode QR ini kepada petugas registrasi.', W / 2, y + 20)
-    x.fillText(multi ? 'Dapat diwakilkan. Berlaku untuk kedua hari kegiatan.' : 'Dapat diwakilkan. Berlaku untuk satu kali registrasi.', W / 2, y + 56)
+    x.fillText('Tunjukkan QR ini kepada petugas.', W / 2, y + 20)
+    x.fillText(multi ? 'Dapat diwakilkan. Berlaku untuk kedua hari.' : 'Dapat diwakilkan. Berlaku satu kali.', W / 2, y + 56)
     const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = `undangan-${(t.participantName || kode).replace(/[^\w-]+/g, '_')}.png`; a.click() }
 
   return <div className="tk-wrap">
@@ -53,13 +53,13 @@ export default function PublicTicket() {
     {t && <div className="tk">
       <div className="tk-head"><div className="tk-eyebrow">Undangan Peserta</div><h1>{sem.title || 'Seminar'}</h1></div>
       <div className="tk-body">
-        {t.status === 'aktif' && !usedToday && <div className="tk-status ok"><i className="bi bi-check-circle-fill"/> Undangan aktif dan siap digunakan</div>}
+        {t.status === 'aktif' && !usedToday && <div className="tk-status ok"><i className="bi bi-check-circle-fill"/> Undangan aktif</div>}
 
-        {t.status === 'dicabut' && <div className="tk-status off"><i className="bi bi-slash-circle-fill"/> Undangan ini telah dinonaktifkan oleh panitia dan tidak dapat digunakan. Silakan menghubungi panitia penyelenggara.</div>}
+        {t.status === 'dicabut' && <div className="tk-status off"><i className="bi bi-slash-circle-fill"/> Undangan ini dinonaktifkan. Hubungi panitia.</div>}
 
         <div className={`tk-qr ${usedToday ? 'used' : ''}`}>{img ? <img src={img} alt="Kode QR undangan"/> : <Skel w="min(300px,100%)" h="300px" r="12px"/>}</div>
-        <p className="tk-hint">Tunjukkan kode QR ini kepada petugas registrasi pada saat kedatangan. Jika QR tidak dapat dipindai, sebutkan <b>Nomor undangan</b> di bawah.</p>
-        {t.status === 'aktif' && !usedToday && <div className="tk-bright"><i className="bi bi-brightness-high-fill"/> Naikkan kecerahan layar agar QR mudah dipindai</div>}
+        <p className="tk-hint">Tunjukkan QR ini ke petugas. Jika tidak terbaca, sebutkan <b>Nomor undangan</b> di bawah.</p>
+        {t.status === 'aktif' && !usedToday && <div className="tk-bright"><i className="bi bi-brightness-high-fill"/> Naikkan kecerahan layar</div>}
         <div className="tk-nomor">Nomor undangan<div className="tk-code fs-3">{kode}</div></div>
         {multi && <ul className="tk-days" aria-label="Status kehadiran per hari">{dayList.map(d => { const u = usedOn(t, d, days); return <li key={d} className={u ? 'on' : ''}><i className={`bi bi-${u ? 'check-circle-fill' : 'circle'}`}/><span>{hariLabel(days, d)}{d === today ? ' (hari ini)' : ''}</span><b>{u ? 'Sudah hadir' : 'Belum hadir'}</b></li> })}</ul>}
 
@@ -75,15 +75,15 @@ export default function PublicTicket() {
 
         <details className="tk-fold"><summary>Ketentuan</summary>
         <ol className="tk-rules">
-          <li>{multi ? 'Undangan ini berlaku untuk kedua hari kegiatan dan dipindai satu kali setiap hari.' : 'Undangan ini hanya dapat digunakan satu kali.'}</li>
-          <li>Apabila Anda berhalangan hadir, undangan ini dapat diwakilkan kepada orang lain. Perwakilan cukup menunjukkan kode QR ini dan menyebutkan namanya kepada petugas.</li>
-          <li>Bagikan tautan atau kode QR ini hanya kepada orang yang Anda tunjuk sebagai perwakilan.</li>
-          <li>Simpan undangan ini atau unduh sebagai gambar agar tetap dapat ditunjukkan apabila koneksi internet tidak tersedia.</li>
-          <li>Apabila terdapat kendala, silakan menghubungi panitia penyelenggara.</li>
+          <li>{multi ? 'Berlaku untuk kedua hari, dipindai satu kali tiap hari.' : 'Hanya berlaku satu kali.'}</li>
+          <li>Dapat diwakilkan. Perwakilan cukup menunjukkan QR ini dan menyebut namanya.</li>
+          <li>Bagikan hanya kepada perwakilan Anda.</li>
+          <li>Simpan atau unduh undangan ini untuk jaga-jaga bila tidak ada internet.</li>
+          
         </ol></details>
 
         <button className="btn btn-primary w-100 mt-3" disabled={!img} onClick={unduh}><i className="bi bi-download"/> Unduh undangan (PNG)</button>
-        <p className="tk-foot">Undangan ini diterbitkan secara elektronik oleh panitia penyelenggara dan sah tanpa tanda tangan.</p>
+        <p className="tk-foot">Undangan elektronik, sah tanpa tanda tangan.</p>
       </div></div>}
   </div>
 }

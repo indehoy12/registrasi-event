@@ -5,7 +5,7 @@ export default function Login({ noAccess }) {
     try { await signInWithEmailAndPassword(auth, e, p) } catch { setErr('Email atau kata sandi salah.') } setBusy(false) }
   return <div className="login"><div className="login-card">
     <div className="brand-mark"><i className="bi bi-qr-code-scan"/></div>
-    <h1 className="h4">Masuk ke panel registrasi</h1><p className="sub">Gunakan akun yang diberikan oleh Super Admin.</p>
+    <h1 className="h4">Masuk ke panel registrasi</h1>
     {noAccess && <div className="alert alert-warning">Akun Anda belum diberi akses. Hubungi Super Admin.</div>}
     {err && <div className="alert alert-danger">{err}</div>}
     <form onSubmit={go}>

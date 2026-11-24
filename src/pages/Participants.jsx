@@ -36,20 +36,21 @@ export default function Participants() {
     const d = { ...f, name: f.name.trim(), email: f.email.trim(), institution: f.institution.trim(), pimpinan: (f.pimpinan || '').trim(), domisili: (f.domisili || '').trim(), wilayah: (f.wilayah || '').trim(), bidang: (f.bidang || '').trim(), whatsapp: waNumber(f.whatsapp), waAsli: f.whatsapp.trim(), hari: normHari(f.hari) }, er = {}
     if (!d.name) er.name = 'Nama PIC/Admin wajib diisi.'
     if (multi && f.hari === '?') er.hari = 'Pilih batch peserta.'
-    if (f.whatsapp.trim() && !validWa(d.whatsapp)) er.whatsapp = 'Nomor tidak valid. Harus nomor HP berawalan 08 atau 628, contoh: 08123456789 atau 628123456789, atau kosongkan.'
-    else if (d.whatsapp && rows.some(r => r.id !== edit && waNumber(r.whatsapp) === d.whatsapp)) er.whatsapp = 'Nomor WhatsApp ini sudah terdaftar.'
-    if (d.email && !validEmail(d.email)) er.email = 'Format email tidak valid (contoh: nama@gmail.com), atau kosongkan.'
+    if (f.whatsapp.trim() && !validWa(d.whatsapp)) er.whatsapp = 'Nomor tidak valid. Awali dengan 08 atau 628.'
+    // Peserta yang nomornya memang sudah sama sejak diimport (mode "Import semua baris") tetap boleh diubah datanya selama nomornya tidak diganti.
+    else if (d.whatsapp && !(edit && waNumber(rows.find(r => r.id === edit)?.whatsapp) === d.whatsapp) && rows.some(r => r.id !== edit && waNumber(r.whatsapp) === d.whatsapp)) er.whatsapp = 'Nomor WhatsApp ini sudah terdaftar.'
+    if (d.email && !validEmail(d.email)) er.email = 'Format email tidak valid.'
     setFe(er); if (Object.keys(er).length) { document.getElementById('pf-' + Object.keys(er)[0])?.focus(); return }
     setBusy(true)
     try { if (edit) { const lama = rows.find(r => r.id === edit); await updateDoc(doc(db,'participants',edit), d)
-        try { await syncTiket(edit, d, lama) } catch (ex2) { setErr('Data peserta tersimpan, tetapi undangannya gagal diperbarui (' + (ex2.code || ex2.message) + '). Simpan ulang data peserta ini untuk mencoba lagi.'); setBusy(false); return } }
+        try { await syncTiket(edit, d, lama) } catch (ex2) { setErr('Data tersimpan, tapi undangan gagal diperbarui. Simpan ulang.'); setBusy(false); return } }
       else await addDoc(collection(db,'participants'), { ...d, createdAt: serverTimestamp() })
       if (lagi && !edit) { setOk(d.name + ' berhasil ditambahkan. Silakan isi peserta berikutnya.'); setF({ ...empty, hari: multi ? f.hari : '' }); setFe({}); setBusy(false); setTimeout(() => nameRef.current?.focus(), 0); return }
       setBusy(false); setOpen(false); setF(empty); setEdit(null); setOk('')
-    } catch (ex) { setBusy(false); setErr(ex.code === 'permission-denied' ? 'Ditolak oleh aturan Firestore (permission-denied). Periksa dokumen akun di koleksi users (role dan active) dan pastikan firestore.rules sudah di-Publish.' : 'Gagal menyimpan: ' + (ex.code || '') + ' ' + ex.message) } }
+    } catch (ex) { setBusy(false); setErr(ex.code === 'permission-denied' ? 'Akses ditolak. Hubungi Super Admin.' : 'Gagal menyimpan: ' + (ex.code || '') + ' ' + ex.message) } }
   // Hapus peserta sekaligus mencabut undangannya (satu batch), agar tidak ada undangan aktif tanpa pemilik
   const hapus = async (r) => {
-    if (!await ask({ title:'Hapus peserta?', text:`${r.name} akan dihapus dari daftar dan undangannya otomatis dicabut. Riwayat check-in yang sudah ada tetap tersimpan.`, ok:'Hapus', danger:true })) return
+    if (!await ask({ title:'Hapus peserta?', text:`${r.name} akan dihapus dan undangannya dicabut.`, ok:'Hapus', danger:true })) return
     try { const s = await getDocs(query(collection(db,'tickets'), where('participantId','==',r.id))), b = writeBatch(db)
       s.docs.forEach(t => { if (t.data().status !== 'dicabut') b.update(t.ref, { status: 'dicabut' }) })
       b.delete(doc(db,'participants',r.id)); await b.commit()
@@ -89,14 +90,14 @@ export default function Participants() {
       <form className="mdl mdl-form" role="dialog" aria-modal="true" aria-labelledby="pf-t" onSubmit={save} noValidate>
         <div className="pf-head"><div className="pf-ic"><i className={'bi bi-' + (edit ? 'pencil-square' : 'person-plus')}/></div>
           <div className="me-auto"><h2 id="pf-t" className="h5 mb-0">{edit ? 'Ubah data peserta' : 'Tambah peserta'}</h2>
-            <div className="small text-muted">{edit ? 'Perubahan ikut diterapkan ke undangan peserta.' : 'Isi data di bawah. Tanda * wajib diisi.'}</div></div>
+</div>
           <button type="button" className="btn-close" aria-label="Tutup" onClick={tutup}/></div>
         <div className="pf-body">
         {err && <div className="alert alert-danger py-2 small mb-3" role="alert">{err}</div>}
         {ok && <div className="alert alert-success py-2 small mb-3" role="status"><i className="bi bi-check-circle-fill"/> {ok}</div>}
         <div className="pf-sec">Perusahaan / Individu</div>
         <div className="row g-3">
-          <div className="col-12"><Field id="pf-email" label="Email Address" icon="envelope" error={fe.email} hint="Boleh dikosongkan.">{inp('email', 'nama@perusahaan.co.id', { type: 'email', inputMode: 'email' })}</Field></div>
+          <div className="col-12"><Field id="pf-email" label="Email Address" icon="envelope" error={fe.email}>{inp('email', 'nama@perusahaan.co.id', { type: 'email', inputMode: 'email' })}</Field></div>
           <div className="col-12 col-md-6"><Field id="pf-institution" label="Nama Perusahaan/Nama Individu" icon="building">{inp('institution', 'Contoh: PT Maju Bersama', { type: 'text' })}</Field></div>
           <div className="col-12 col-md-6"><Field id="pf-pimpinan" label="Nama Pimpinan" icon="person-badge">{inp('pimpinan', 'Contoh: Bapak Andi Wijaya', { type: 'text' })}</Field></div>
           <div className="col-12 col-md-6"><Field id="pf-domisili" label="Domisili" icon="geo-alt">{inp('domisili', 'Contoh: Kota Bandung', { type: 'text' })}</Field></div>
@@ -106,7 +107,7 @@ export default function Participants() {
         <div className="pf-sec">PIC / Admin</div>
         <div className="row g-3">
           <div className="col-12"><Field id="pf-name" label="Nama PIC/Admin" req icon="person" error={fe.name}>{inp('name', 'Contoh: Budi Santoso', { type: 'text', autoFocus: true, ref: nameRef })}</Field></div>
-          <div className="col-12"><Field id="pf-whatsapp" label="No HP PIC/Admin" icon="whatsapp" error={fe.whatsapp} hint="Awali dengan 08 atau 628. Boleh dikosongkan.">{inp('whatsapp', '08123456789', { type: 'tel', inputMode: 'numeric' })}</Field></div>
+          <div className="col-12"><Field id="pf-whatsapp" label="No HP PIC/Admin" icon="whatsapp" error={fe.whatsapp} hint="Awali dengan 08 atau 628.">{inp('whatsapp', '08123456789', { type: 'tel', inputMode: 'numeric' })}</Field></div>
         </div>
         {multi && <><div className="pf-sec">Kehadiran</div>
           <Field id="pf-hari" label="Batch kehadiran" req icon="calendar-event" error={fe.hari}>
