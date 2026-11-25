@@ -80,7 +80,7 @@ export function isiPesan({ pf, sf, maps, base, ticketId, adaGambar }) {
   const wakil = 'dan dapat diwakilkan dengan menyebutkan nama perwakilan kepada petugas'
   const ketentuan = label ? `Berlaku untuk 1 (satu) peserta pada ${label} (${tgl(dSatu)}), ${wakil}. Kehadiran menjadi salah satu pertimbangan penetapan Daftar Rekanan Mampu (DRM) PT Kawasan Industri Terpadu Batang.`
     : dua ? `Berlaku untuk 1 (satu) peserta di kedua hari (dipindai satu kali tiap hari), ${wakil}.`
-    : `Berlaku untuk 1 (satu) peserta, satu kali registrasi, ${wakil}.`
+      : `Berlaku untuk 1 (satu) peserta, satu kali registrasi, ${wakil}.`
   const teks = [
     ...sapaan(pf),
     '',
@@ -127,6 +127,9 @@ export function isiPesanArahEmail({ pf, sf, base, ticketId }) {
     ...sapaan(pf),
     '',
     `Undangan ${B1}${title}${label ? ' - ' + label : ''}${B2} sudah kami kirim ke email ${email} dari ${dari}. Mohon cek kotak masuk atau folder Spam.`,
+    '',
+    'Kode QR (barcode) registrasi juga dapat dibuka langsung di tautan berikut. Tunjukkan kepada petugas saat kedatangan:',
+    `${base}/undangan/${ticketId}`,
     '',
     `Mohon balas ${B1}Hadir${B2} bila undangan sudah diterima.`,
     '',
